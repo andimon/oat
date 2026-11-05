@@ -11,10 +11,10 @@ defmodule Oat.ValidatorHelpers do
         cases = [{"", true}]
 
         # Act
-        results = run(MyValidator, [:client_id?], cases)
+        results = check_all(MyValidator, [:client_id?], cases)
 
         # Assert
-        assert_matches(results)
+        assert_as_expected(results)
       end
   """
 
@@ -25,14 +25,14 @@ defmodule Oat.ValidatorHelpers do
 
   Returns a list of `{fun, input, expected, actual}` tuples.
   """
-  def run(module, funs, cases) do
+  def check_all(module, funs, cases) do
     for fun <- funs, {input, expected} <- cases do
       {fun, input, expected, apply(module, fun, [input])}
     end
   end
 
   @doc "Assert: every actual result equals the expected one."
-  def assert_matches(results) do
+  def assert_as_expected(results) do
     for {fun, input, expected, actual} <- results do
       assert actual == expected,
              "#{fun}(#{inspect(input)}) expected #{expected}, got #{actual}"

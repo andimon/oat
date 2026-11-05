@@ -63,10 +63,10 @@ defmodule Oat.OAuth2.SyntaxTest do
       ]
 
       # Act
-      results = run(Syntax, @all_funs, cases)
+      results = check_all(Syntax, @all_funs, cases)
 
       # Assert
-      assert_matches(results)
+      assert_as_expected(results)
     end
   end
 
@@ -76,10 +76,10 @@ defmodule Oat.OAuth2.SyntaxTest do
       cases = [{"", true}]
 
       # Act
-      results = run(Syntax, @expects_zero_or_more_characters, cases)
+      results = check_all(Syntax, @expects_zero_or_more_characters, cases)
 
       # Assert
-      assert_matches(results)
+      assert_as_expected(results)
     end
 
     test "1* rules reject the empty string" do
@@ -87,10 +87,10 @@ defmodule Oat.OAuth2.SyntaxTest do
       cases = [{"", false}]
 
       # Act
-      results = run(Syntax, @expects_one_or_more_characters, cases)
+      results = check_all(Syntax, @expects_one_or_more_characters, cases)
 
       # Assert
-      assert_matches(results)
+      assert_as_expected(results)
     end
 
     test "1* rules accept a single valid character" do
@@ -100,12 +100,12 @@ defmodule Oat.OAuth2.SyntaxTest do
 
       # Act
       results =
-        run(Syntax, letter_funs, [{"a", true}]) ++
-          run(Syntax, name_funs, [{"a", true}]) ++
-          run(Syntax, [:expires_in?], [{"0", true}])
+        check_all(Syntax, letter_funs, [{"a", true}]) ++
+          check_all(Syntax, name_funs, [{"a", true}]) ++
+          check_all(Syntax, [:expires_in?], [{"0", true}])
 
       # Assert
-      assert_matches(results)
+      assert_as_expected(results)
     end
   end
 
@@ -125,10 +125,10 @@ defmodule Oat.OAuth2.SyntaxTest do
         cases = [{unquote(input), unquote(expected)}]
 
         # Act
-        results = run(Syntax, @vschar_funs, cases)
+        results = check_all(Syntax, @vschar_funs, cases)
 
         # Assert
-        assert_matches(results)
+        assert_as_expected(results)
       end
     end
   end
@@ -151,10 +151,10 @@ defmodule Oat.OAuth2.SyntaxTest do
         cases = [{unquote(input), unquote(expected)}]
 
         # Act
-        results = run(Syntax, [:scope_token?], cases)
+        results = check_all(Syntax, [:scope_token?], cases)
 
         # Assert
-        assert_matches(results)
+        assert_as_expected(results)
       end
     end
   end
@@ -177,10 +177,10 @@ defmodule Oat.OAuth2.SyntaxTest do
         cases = [{unquote(input), unquote(expected)}]
 
         # Act
-        results = run(Syntax, [:error?, :error_description?], cases)
+        results = check_all(Syntax, [:error?, :error_description?], cases)
 
         # Assert
-        assert_matches(results)
+        assert_as_expected(results)
       end
     end
   end
@@ -202,10 +202,10 @@ defmodule Oat.OAuth2.SyntaxTest do
         cases = [{unquote(input), unquote(expected)}]
 
         # Act
-        results = run(Syntax, [:expires_in?], cases)
+        results = check_all(Syntax, [:expires_in?], cases)
 
         # Assert
-        assert_matches(results)
+        assert_as_expected(results)
       end
     end
   end
@@ -217,10 +217,10 @@ defmodule Oat.OAuth2.SyntaxTest do
         cases = [{unquote(char), true}]
 
         # Act
-        results = run(Syntax, [:name?], cases)
+        results = check_all(Syntax, [:name?], cases)
 
         # Assert
-        assert_matches(results)
+        assert_as_expected(results)
       end
     end
 
@@ -231,10 +231,10 @@ defmodule Oat.OAuth2.SyntaxTest do
         cases = [{unquote(char), false}]
 
         # Act
-        results = run(Syntax, [:name?], cases)
+        results = check_all(Syntax, [:name?], cases)
 
         # Assert
-        assert_matches(results)
+        assert_as_expected(results)
       end
     end
   end
@@ -246,10 +246,10 @@ defmodule Oat.OAuth2.SyntaxTest do
         cases = [{unquote(char), true}]
 
         # Act
-        results = run(Syntax, [:response_type?], cases)
+        results = check_all(Syntax, [:response_type?], cases)
 
         # Assert
-        assert_matches(results)
+        assert_as_expected(results)
       end
     end
 
@@ -261,11 +261,11 @@ defmodule Oat.OAuth2.SyntaxTest do
 
         # Act
         results =
-          run(Syntax, [:response_type?], [{input, false}]) ++
-            run(Syntax, [:name?], [{input, true}])
+          check_all(Syntax, [:response_type?], [{input, false}]) ++
+            check_all(Syntax, [:name?], [{input, true}])
 
         # Assert
-        assert_matches(results)
+        assert_as_expected(results)
       end
     end
   end
@@ -299,10 +299,10 @@ defmodule Oat.OAuth2.SyntaxTest do
         cases = [{unquote(input), unquote(expected)}]
 
         # Act
-        results = run(Syntax, [:username?, :password?], cases)
+        results = check_all(Syntax, [:username?, :password?], cases)
 
         # Assert
-        assert_matches(results)
+        assert_as_expected(results)
       end
     end
   end
@@ -313,10 +313,10 @@ defmodule Oat.OAuth2.SyntaxTest do
       cases = [{"a", true}, {"a b", true}, {"a b c", true}]
 
       # Act
-      results = run(Syntax, [:scope?, :response_type?], cases)
+      results = check_all(Syntax, [:scope?, :response_type?], cases)
 
       # Assert
-      assert_matches(results)
+      assert_as_expected(results)
     end
 
     test "empty tokens are rejected" do
@@ -324,10 +324,10 @@ defmodule Oat.OAuth2.SyntaxTest do
       cases = [{" a", false}, {"a ", false}, {"a  b", false}, {" ", false}]
 
       # Act
-      results = run(Syntax, [:scope?, :response_type?], cases)
+      results = check_all(Syntax, [:scope?, :response_type?], cases)
 
       # Assert
-      assert_matches(results)
+      assert_as_expected(results)
     end
 
     test "a bad token anywhere is rejected" do
@@ -337,10 +337,11 @@ defmodule Oat.OAuth2.SyntaxTest do
 
       # Act
       results =
-        run(Syntax, [:scope?], bad_scopes) ++ run(Syntax, [:response_type?], bad_response_types)
+        check_all(Syntax, [:scope?], bad_scopes) ++
+          check_all(Syntax, [:response_type?], bad_response_types)
 
       # Assert
-      assert_matches(results)
+      assert_as_expected(results)
     end
 
     test "only a space separates tokens" do
@@ -348,10 +349,10 @@ defmodule Oat.OAuth2.SyntaxTest do
       cases = [{"a\tb", false}, {"a\nb", false}]
 
       # Act
-      results = run(Syntax, [:scope?, :response_type?], cases)
+      results = check_all(Syntax, [:scope?, :response_type?], cases)
 
       # Assert
-      assert_matches(results)
+      assert_as_expected(results)
     end
   end
 
@@ -361,10 +362,10 @@ defmodule Oat.OAuth2.SyntaxTest do
       cases = [{"authorization_code", true}, {"Bearer", true}]
 
       # Act
-      results = run(Syntax, [:grant_type?, :token_type?], cases)
+      results = check_all(Syntax, [:grant_type?, :token_type?], cases)
 
       # Assert
-      assert_matches(results)
+      assert_as_expected(results)
     end
 
     test "a URI that is not a name is accepted" do
@@ -372,10 +373,10 @@ defmodule Oat.OAuth2.SyntaxTest do
       cases = [{"urn:ietf:params:oauth:grant-type:jwt-bearer", true}, {"https://x/y", true}]
 
       # Act
-      results = run(Syntax, [:grant_type?, :token_type?], cases)
+      results = check_all(Syntax, [:grant_type?, :token_type?], cases)
 
       # Assert
-      assert_matches(results)
+      assert_as_expected(results)
     end
 
     test "neither a name nor a URI is rejected" do
@@ -383,10 +384,10 @@ defmodule Oat.OAuth2.SyntaxTest do
       cases = [{"a b", false}, {"", false}]
 
       # Act
-      results = run(Syntax, [:grant_type?, :token_type?], cases)
+      results = check_all(Syntax, [:grant_type?, :token_type?], cases)
 
       # Assert
-      assert_matches(results)
+      assert_as_expected(results)
     end
   end
 
@@ -396,10 +397,10 @@ defmodule Oat.OAuth2.SyntaxTest do
       cases = [{"https://example.com/cb?x=1#f", true}]
 
       # Act
-      results = run(Syntax, [:uri_reference?], cases)
+      results = check_all(Syntax, [:uri_reference?], cases)
 
       # Assert
-      assert_matches(results)
+      assert_as_expected(results)
     end
 
     test "relative references are accepted" do
@@ -407,10 +408,10 @@ defmodule Oat.OAuth2.SyntaxTest do
       cases = [{"/cb", true}, {"cb", true}, {"?x=1", true}, {"#frag", true}]
 
       # Act
-      results = run(Syntax, [:uri_reference?], cases)
+      results = check_all(Syntax, [:uri_reference?], cases)
 
       # Assert
-      assert_matches(results)
+      assert_as_expected(results)
     end
 
     test "the empty string is rejected on purpose" do
@@ -418,10 +419,10 @@ defmodule Oat.OAuth2.SyntaxTest do
       cases = [{"", false}]
 
       # Act
-      results = run(Syntax, [:uri_reference?], cases)
+      results = check_all(Syntax, [:uri_reference?], cases)
 
       # Assert
-      assert_matches(results)
+      assert_as_expected(results)
     end
 
     test "malformed input is rejected" do
@@ -429,10 +430,10 @@ defmodule Oat.OAuth2.SyntaxTest do
       cases = [{"http://[bad", false}, {"a b", false}, {<<0xFF>>, false}]
 
       # Act
-      results = run(Syntax, [:uri_reference?], cases)
+      results = check_all(Syntax, [:uri_reference?], cases)
 
       # Assert
-      assert_matches(results)
+      assert_as_expected(results)
     end
   end
 
@@ -448,10 +449,10 @@ defmodule Oat.OAuth2.SyntaxTest do
       ]
 
       # Act
-      results = for {fun, input} <- happy_paths, do: hd(run(Syntax, [fun], [{input, true}]))
+      results = for {fun, input} <- happy_paths, do: hd(check_all(Syntax, [fun], [{input, true}]))
 
       # Assert
-      assert_matches(results)
+      assert_as_expected(results)
     end
 
     test "one bad character in the middle or at the end is rejected" do
@@ -465,10 +466,11 @@ defmodule Oat.OAuth2.SyntaxTest do
       ]
 
       # Act
-      results = Enum.flat_map(cases, fn {fun, fun_cases} -> run(Syntax, [fun], fun_cases) end)
+      results =
+        Enum.flat_map(cases, fn {fun, fun_cases} -> check_all(Syntax, [fun], fun_cases) end)
 
       # Assert
-      assert_matches(results)
+      assert_as_expected(results)
     end
   end
 
@@ -506,10 +508,10 @@ defmodule Oat.OAuth2.SyntaxTest do
         cases = for input <- @samples, do: {input, apply(Syntax, reference, [input])}
 
         # Act
-        results = run(Syntax, others, cases)
+        results = check_all(Syntax, others, cases)
 
         # Assert
-        assert_matches(results)
+        assert_as_expected(results)
       end
     end
   end

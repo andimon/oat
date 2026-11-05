@@ -6,8 +6,8 @@ defmodule Oat.OAuth2.SyntaxTest do
   # Every public validator, read from the module so new ones are covered automatically.
   @all_funs for {name, 1} <- Syntax.__info__(:functions), do: name
 
-  @min0 [:client_id?, :client_secret?, :username?, :password?]
-  @min1 [
+  @expects_zero_or_more_characters [:client_id?, :client_secret?, :username?, :password?]
+  @expects_one_or_more_characters [
     :state?,
     :code?,
     :access_token?,
@@ -37,8 +37,11 @@ defmodule Oat.OAuth2.SyntaxTest do
 
   describe "coverage guard" do
     test "every public function is classified by minimum length" do
-      assert Enum.sort(@all_funs) == Enum.sort(@min0 ++ @min1 ++ @composite),
-             "add new validators to @min0, @min1 or @composite"
+      assert Enum.sort(@all_funs) ==
+               Enum.sort(
+                 @expects_zero_or_more_characters ++ @expects_one_or_more_characters ++ @composite
+               ),
+             "add new validators to a minimum-length group"
     end
   end
 
@@ -52,11 +55,11 @@ defmodule Oat.OAuth2.SyntaxTest do
 
   describe "minimum length" do
     test "* rules accept the empty string" do
-      check(@min0, "", true)
+      check(@expects_zero_or_more_characters, "", true)
     end
 
     test "1* rules reject the empty string and accept one valid char" do
-      check(@min1, "", false)
+      check(@expects_one_or_more_characters, "", false)
       check([:state?, :code?, :access_token?, :refresh_token?], "a", true)
       check([:scope_token?, :error?, :error_description?, :name?], "a", true)
       check([:expires_in?], "0", true)

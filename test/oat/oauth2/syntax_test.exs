@@ -3,26 +3,8 @@ defmodule Oat.OAuth2.SyntaxTest do
 
   alias Oat.OAuth2.Syntax
 
-  @all_funs [
-    :client_id?,
-    :client_secret?,
-    :response_type?,
-    :scope?,
-    :scope_token?,
-    :state?,
-    :error?,
-    :error_description?,
-    :grant_type?,
-    :code?,
-    :access_token?,
-    :token_type?,
-    :expires_in?,
-    :username?,
-    :password?,
-    :refresh_token?,
-    :name?,
-    :uri_reference?
-  ]
+  # Every public validator, read from the module so new ones are covered automatically.
+  @all_funs for {name, 1} <- Syntax.__info__(:functions), do: name
 
   @min0 [:client_id?, :client_secret?, :username?, :password?]
   @min1 [
@@ -50,6 +32,13 @@ defmodule Oat.OAuth2.SyntaxTest do
     for fun <- funs do
       assert apply(Syntax, fun, [input]) == expected,
              "#{fun}(#{inspect(input)}) expected #{expected}"
+    end
+  end
+
+  describe "coverage guard" do
+    test "every public function is classified by minimum length" do
+      assert Enum.sort(@all_funs) == Enum.sort(@min0 ++ @min1 ++ @composite),
+             "add new validators to @min0, @min1 or @composite"
     end
   end
 

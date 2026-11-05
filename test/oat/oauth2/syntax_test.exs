@@ -26,44 +26,91 @@ defmodule Oat.OAuth2.SyntaxTest do
 
   @vschar_funs [:client_id?, :client_secret?, :state?, :code?, :access_token?, :refresh_token?]
 
-  defp check(funs, input, expected) do
-    for fun <- funs do
-      assert apply(Syntax, fun, [input]) == expected,
-             "#{fun}(#{inspect(input)}) expected #{expected}"
+  # Act: call every function in `funs` with every `{input, expected}` case.
+  defp run(funs, cases) do
+    for fun <- funs, {input, expected} <- cases do
+      {fun, input, expected, apply(Syntax, fun, [input])}
     end
   end
 
+  # Assert: every actual result equals the expected one.
+  defp assert_matches(results) do
+    for {fun, input, expected, actual} <- results do
+      assert actual == expected,
+             "#{fun}(#{inspect(input)}) expected #{expected}, got #{actual}"
+    end
+  end
+
+  # Builds `{input, expected}` cases that all share one expected result.
+  defp all(inputs, expected), do: for(input <- inputs, do: {input, expected})
+
   describe "coverage guard" do
     test "every public function is classified by minimum length" do
-      assert Enum.sort(@all_funs) ==
-               Enum.sort(@expects_zero_or_more_characters ++ @expects_one_or_more_characters),
-             "add new validators to a minimum-length group"
+      # Arrange
+      public = @all_funs
+      classified = @expects_zero_or_more_characters ++ @expects_one_or_more_characters
+
+      # Act
+      unclassified = public -- classified
+      unknown = classified -- public
+
+      # Assert
+      assert unclassified == [], "add new validators to a minimum-length group"
+      assert unknown == [], "these functions are not public validators"
     end
   end
 
   describe "non-binary input" do
     test "every function returns false" do
-      for input <- [nil, 1, :atom, ~c"abc", ["a"], %{}] do
-        check(@all_funs, input, false)
-      end
+      # Arrange
+      cases = all([nil, 1, :atom, ~c"abc", ["a"], %{}], false)
+
+      # Act
+      results = run(@all_funs, cases)
+
+      # Assert
+      assert_matches(results)
     end
   end
 
   describe "minimum length" do
     test "* rules accept the empty string" do
-      check(@expects_zero_or_more_characters, "", true)
+      # Arrange
+      cases = all([""], true)
+
+      # Act
+      results = run(@expects_zero_or_more_characters, cases)
+
+      # Assert
+      assert_matches(results)
     end
 
-    test "1* rules reject the empty string and accept one valid char" do
-      check(@expects_one_or_more_characters, "", false)
-      check([:state?, :code?, :access_token?, :refresh_token?], "a", true)
-      check([:scope_token?, :error?, :error_description?, :name?], "a", true)
-      check([:expires_in?], "0", true)
+    test "1* rules reject the empty string" do
+      # Arrange
+      cases = all([""], false)
+
+      # Act
+      results = run(@expects_one_or_more_characters, cases)
+
+      # Assert
+      assert_matches(results)
+    end
+
+    test "1* rules accept a single valid character" do
+      # Arrange
+      letter_funs = [:state?, :code?, :access_token?, :refresh_token?]
+      name_funs = [:scope_token?, :error?, :error_description?, :name?]
+
+      # Act
+      results =
+        run(letter_funs, all(["a"], true)) ++
+          run(name_funs, all(["a"], true)) ++
+          run([:expires_in?], all(["0"], true))
+
+      # Assert
+      assert_matches(results)
     end
   end
-
-  # Each case below is one test: the input is arranged in the table, `check/3`
-  # acts on every function listed for the rule, and asserts the expected result.
 
   describe "VSCHAR (%x20-7E)" do
     for {label, input, expected} <- [
@@ -77,7 +124,14 @@ defmodule Oat.OAuth2.SyntaxTest do
           {"non-ASCII é is rejected", "é", false}
         ] do
       test label do
-        check(@vschar_funs, unquote(input), unquote(expected))
+        # Arrange
+        cases = [{unquote(input), unquote(expected)}]
+
+        # Act
+        results = run(@vschar_funs, cases)
+
+        # Assert
+        assert_matches(results)
       end
     end
   end
@@ -96,7 +150,14 @@ defmodule Oat.OAuth2.SyntaxTest do
           {"non-ASCII é is rejected", "é", false}
         ] do
       test label do
-        check([:scope_token?], unquote(input), unquote(expected))
+        # Arrange
+        cases = [{unquote(input), unquote(expected)}]
+
+        # Act
+        results = run([:scope_token?], cases)
+
+        # Assert
+        assert_matches(results)
       end
     end
   end
@@ -115,7 +176,14 @@ defmodule Oat.OAuth2.SyntaxTest do
           {"non-ASCII é is rejected", "é", false}
         ] do
       test label do
-        check([:error?, :error_description?], unquote(input), unquote(expected))
+        # Arrange
+        cases = [{unquote(input), unquote(expected)}]
+
+        # Act
+        results = run([:error?, :error_description?], cases)
+
+        # Assert
+        assert_matches(results)
       end
     end
   end
@@ -133,7 +201,14 @@ defmodule Oat.OAuth2.SyntaxTest do
           {"embedded space is rejected", "1 2", false}
         ] do
       test label do
-        check([:expires_in?], unquote(input), unquote(expected))
+        # Arrange
+        cases = [{unquote(input), unquote(expected)}]
+
+        # Act
+        results = run([:expires_in?], cases)
+
+        # Assert
+        assert_matches(results)
       end
     end
   end
@@ -141,14 +216,28 @@ defmodule Oat.OAuth2.SyntaxTest do
   describe "name-char (name?)" do
     for char <- ~w(a z A Z 0 9 - . _) do
       test "#{char} is accepted" do
-        check([:name?], unquote(char), true)
+        # Arrange
+        cases = all([unquote(char)], true)
+
+        # Act
+        results = run([:name?], cases)
+
+        # Assert
+        assert_matches(results)
       end
     end
 
     # characters just outside the letter and digit ranges, plus separators
     for char <- ["@", "[", "`", "{", "/", ":", " "] do
       test "#{inspect(char)} is rejected" do
-        check([:name?], unquote(char), false)
+        # Arrange
+        cases = all([unquote(char)], false)
+
+        # Act
+        results = run([:name?], cases)
+
+        # Assert
+        assert_matches(results)
       end
     end
   end
@@ -156,15 +245,28 @@ defmodule Oat.OAuth2.SyntaxTest do
   describe "response-char (response_type?)" do
     for char <- ~w(a Z 0 9 _) do
       test "#{char} is accepted" do
-        check([:response_type?], unquote(char), true)
+        # Arrange
+        cases = all([unquote(char)], true)
+
+        # Act
+        results = run([:response_type?], cases)
+
+        # Assert
+        assert_matches(results)
       end
     end
 
     # narrower than name-char, so the two are not confused
     for char <- ["a-b", "a.b"] do
       test "#{char} is rejected by response_type? but accepted by name?" do
-        check([:response_type?], unquote(char), false)
-        check([:name?], unquote(char), true)
+        # Arrange
+        input = unquote(char)
+
+        # Act
+        results = run([:response_type?], [{input, false}]) ++ run([:name?], [{input, true}])
+
+        # Assert
+        assert_matches(results)
       end
     end
   end
@@ -194,101 +296,179 @@ defmodule Oat.OAuth2.SyntaxTest do
           {"truncated sequence is rejected", <<0xE2, 0x82>>, false}
         ] do
       test label do
-        check([:username?, :password?], unquote(input), unquote(expected))
+        # Arrange
+        cases = [{unquote(input), unquote(expected)}]
+
+        # Act
+        results = run([:username?, :password?], cases)
+
+        # Assert
+        assert_matches(results)
       end
     end
   end
 
   describe "space-delimited lists (scope?, response_type?)" do
-    test "one, two and three tokens" do
-      assert Syntax.scope?("a")
-      assert Syntax.scope?("a b")
-      assert Syntax.scope?("a b c")
-      assert Syntax.response_type?("code")
-      assert Syntax.response_type?("code id_token")
-      assert Syntax.response_type?("code id_token token")
+    test "one, two and three tokens are accepted" do
+      # Arrange
+      cases = all(["a", "a b", "a b c"], true)
+
+      # Act
+      results = run([:scope?, :response_type?], cases)
+
+      # Assert
+      assert_matches(results)
     end
 
     test "empty tokens are rejected" do
-      for fun <- [:scope?, :response_type?],
-          input <- [" a", "a ", "a  b", " "] do
-        check([fun], input, false)
-      end
+      # Arrange
+      cases = all([" a", "a ", "a  b", " "], false)
+
+      # Act
+      results = run([:scope?, :response_type?], cases)
+
+      # Assert
+      assert_matches(results)
     end
 
     test "a bad token anywhere is rejected" do
-      for input <- [~s(") <> " b c", "a " <> ~s(") <> " c", "a b " <> ~s(")] do
-        refute Syntax.scope?(input)
-      end
+      # Arrange
+      bad_scopes = all([~s(" b c), ~s(a " c), ~s(a b ")], false)
+      bad_response_types = all(["a- b c", "a b- c", "a b c-"], false)
 
-      for input <- ["a- b c", "a b- c", "a b c-"], do: refute(Syntax.response_type?(input))
+      # Act
+      results = run([:scope?], bad_scopes) ++ run([:response_type?], bad_response_types)
+
+      # Assert
+      assert_matches(results)
     end
 
     test "only a space separates tokens" do
-      for fun <- [:scope?, :response_type?], input <- ["a\tb", "a\nb"] do
-        check([fun], input, false)
-      end
+      # Arrange
+      cases = all(["a\tb", "a\nb"], false)
+
+      # Act
+      results = run([:scope?, :response_type?], cases)
+
+      # Assert
+      assert_matches(results)
     end
   end
 
   describe "name / URI-reference alternation (grant_type?, token_type?)" do
-    test "a name" do
-      check([:grant_type?, :token_type?], "authorization_code", true)
-      check([:grant_type?, :token_type?], "Bearer", true)
+    test "a name is accepted" do
+      # Arrange
+      cases = all(["authorization_code", "Bearer"], true)
+
+      # Act
+      results = run([:grant_type?, :token_type?], cases)
+
+      # Assert
+      assert_matches(results)
     end
 
-    test "a URI that is not a name" do
-      check([:grant_type?, :token_type?], "urn:ietf:params:oauth:grant-type:jwt-bearer", true)
-      check([:grant_type?, :token_type?], "https://x/y", true)
+    test "a URI that is not a name is accepted" do
+      # Arrange
+      cases = all(["urn:ietf:params:oauth:grant-type:jwt-bearer", "https://x/y"], true)
+
+      # Act
+      results = run([:grant_type?, :token_type?], cases)
+
+      # Assert
+      assert_matches(results)
     end
 
-    test "neither" do
-      check([:grant_type?, :token_type?], "a b", false)
-      check([:grant_type?, :token_type?], "", false)
+    test "neither a name nor a URI is rejected" do
+      # Arrange
+      cases = all(["a b", ""], false)
+
+      # Act
+      results = run([:grant_type?, :token_type?], cases)
+
+      # Assert
+      assert_matches(results)
     end
   end
 
   describe "uri_reference?" do
-    test "absolute URI" do
-      assert Syntax.uri_reference?("https://example.com/cb?x=1#f")
+    test "an absolute URI is accepted" do
+      # Arrange
+      cases = all(["https://example.com/cb?x=1#f"], true)
+
+      # Act
+      results = run([:uri_reference?], cases)
+
+      # Assert
+      assert_matches(results)
     end
 
-    test "relative references" do
-      for input <- ["/cb", "cb", "?x=1", "#frag"], do: assert(Syntax.uri_reference?(input))
+    test "relative references are accepted" do
+      # Arrange
+      cases = all(["/cb", "cb", "?x=1", "#frag"], true)
+
+      # Act
+      results = run([:uri_reference?], cases)
+
+      # Assert
+      assert_matches(results)
     end
 
     test "the empty string is rejected on purpose" do
-      refute Syntax.uri_reference?("")
+      # Arrange
+      cases = all([""], false)
+
+      # Act
+      results = run([:uri_reference?], cases)
+
+      # Assert
+      assert_matches(results)
     end
 
-    test "malformed input" do
-      for input <- ["http://[bad", "a b", <<0xFF>>], do: refute(Syntax.uri_reference?(input))
+    test "malformed input is rejected" do
+      # Arrange
+      cases = all(["http://[bad", "a b", <<0xFF>>], false)
+
+      # Act
+      results = run([:uri_reference?], cases)
+
+      # Assert
+      assert_matches(results)
     end
   end
 
   describe "realistic values and single bad characters" do
-    test "happy paths" do
-      assert Syntax.client_id?("s6BhdRkqt3")
-      assert Syntax.scope?("read write")
-      assert Syntax.response_type?("code id_token")
-      assert Syntax.error?("invalid_request")
-      assert Syntax.expires_in?("3600")
+    test "happy paths are accepted" do
+      # Arrange
+      happy_paths = [
+        client_id?: "s6BhdRkqt3",
+        scope?: "read write",
+        response_type?: "code id_token",
+        error?: "invalid_request",
+        expires_in?: "3600"
+      ]
+
+      # Act
+      results = for {fun, input} <- happy_paths, do: hd(run([fun], [{input, true}]))
+
+      # Assert
+      assert_matches(results)
     end
 
-    test "one bad character in the middle or at the end" do
-      assert Syntax.state?("abc")
-      refute Syntax.state?("a\nc")
-      refute Syntax.state?("ab\n")
-      assert Syntax.expires_in?("3600")
-      refute Syntax.expires_in?("36a0")
-      refute Syntax.expires_in?("360a")
-      assert Syntax.scope_token?("read")
-      refute Syntax.scope_token?("re\"d")
-      refute Syntax.scope_token?("rea\"")
-      refute Syntax.name?("ab cd")
-      refute Syntax.name?("abcd ")
-      refute Syntax.username?("ab\ncd")
-      refute Syntax.username?("abcd\n")
+    test "one bad character in the middle or at the end is rejected" do
+      # Arrange
+      cases = [
+        state?: [{"abc", true}, {"a\nc", false}, {"ab\n", false}],
+        expires_in?: [{"3600", true}, {"36a0", false}, {"360a", false}],
+        scope_token?: [{"read", true}, {~s(re"d), false}, {~s(rea"), false}],
+        name?: [{"abcd", true}, {"ab cd", false}, {"abcd ", false}],
+        username?: [{"abcd", true}, {"ab\ncd", false}, {"abcd\n", false}]
+      ]
+
+      # Act
+      results = Enum.flat_map(cases, fn {fun, fun_cases} -> run([fun], fun_cases) end)
+
+      # Assert
+      assert_matches(results)
     end
   end
 
@@ -321,12 +501,15 @@ defmodule Oat.OAuth2.SyntaxTest do
           credentials: [:username?, :password?]
         ] do
       test "#{name}: #{inspect(group)}" do
-        [first | rest] = unquote(group)
+        # Arrange: the first function is the reference for the others
+        [reference | others] = unquote(group)
+        cases = for input <- @samples, do: {input, apply(Syntax, reference, [input])}
 
-        for input <- @samples, fun <- rest do
-          assert apply(Syntax, fun, [input]) == apply(Syntax, first, [input]),
-                 "#{fun} and #{first} disagree on #{inspect(input)}"
-        end
+        # Act
+        results = run(others, cases)
+
+        # Assert
+        assert_matches(results)
       end
     end
   end

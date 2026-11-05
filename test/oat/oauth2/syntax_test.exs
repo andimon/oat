@@ -1,6 +1,8 @@
 defmodule Oat.OAuth2.SyntaxTest do
   use ExUnit.Case, async: true
 
+  import Oat.ValidatorHelpers
+
   alias Oat.OAuth2.Syntax
 
   # Every public validator, read from the module so new ones are covered automatically.
@@ -26,24 +28,6 @@ defmodule Oat.OAuth2.SyntaxTest do
 
   @vschar_funs [:client_id?, :client_secret?, :state?, :code?, :access_token?, :refresh_token?]
 
-  # Act: call every function in `funs` with every `{input, expected}` case.
-  defp run(funs, cases) do
-    for fun <- funs, {input, expected} <- cases do
-      {fun, input, expected, apply(Syntax, fun, [input])}
-    end
-  end
-
-  # Assert: every actual result equals the expected one.
-  defp assert_matches(results) do
-    for {fun, input, expected, actual} <- results do
-      assert actual == expected,
-             "#{fun}(#{inspect(input)}) expected #{expected}, got #{actual}"
-    end
-  end
-
-  # Builds `{input, expected}` cases that all share one expected result.
-  defp all(inputs, expected), do: for(input <- inputs, do: {input, expected})
-
   describe "coverage guard" do
     test "every public function is classified by minimum length" do
       # Arrange
@@ -66,7 +50,7 @@ defmodule Oat.OAuth2.SyntaxTest do
       cases = all([nil, 1, :atom, ~c"abc", ["a"], %{}], false)
 
       # Act
-      results = run(@all_funs, cases)
+      results = run(Syntax, @all_funs, cases)
 
       # Assert
       assert_matches(results)
@@ -79,7 +63,7 @@ defmodule Oat.OAuth2.SyntaxTest do
       cases = all([""], true)
 
       # Act
-      results = run(@expects_zero_or_more_characters, cases)
+      results = run(Syntax, @expects_zero_or_more_characters, cases)
 
       # Assert
       assert_matches(results)
@@ -90,7 +74,7 @@ defmodule Oat.OAuth2.SyntaxTest do
       cases = all([""], false)
 
       # Act
-      results = run(@expects_one_or_more_characters, cases)
+      results = run(Syntax, @expects_one_or_more_characters, cases)
 
       # Assert
       assert_matches(results)
@@ -103,9 +87,9 @@ defmodule Oat.OAuth2.SyntaxTest do
 
       # Act
       results =
-        run(letter_funs, all(["a"], true)) ++
-          run(name_funs, all(["a"], true)) ++
-          run([:expires_in?], all(["0"], true))
+        run(Syntax, letter_funs, all(["a"], true)) ++
+          run(Syntax, name_funs, all(["a"], true)) ++
+          run(Syntax, [:expires_in?], all(["0"], true))
 
       # Assert
       assert_matches(results)
@@ -128,7 +112,7 @@ defmodule Oat.OAuth2.SyntaxTest do
         cases = [{unquote(input), unquote(expected)}]
 
         # Act
-        results = run(@vschar_funs, cases)
+        results = run(Syntax, @vschar_funs, cases)
 
         # Assert
         assert_matches(results)
@@ -154,7 +138,7 @@ defmodule Oat.OAuth2.SyntaxTest do
         cases = [{unquote(input), unquote(expected)}]
 
         # Act
-        results = run([:scope_token?], cases)
+        results = run(Syntax, [:scope_token?], cases)
 
         # Assert
         assert_matches(results)
@@ -180,7 +164,7 @@ defmodule Oat.OAuth2.SyntaxTest do
         cases = [{unquote(input), unquote(expected)}]
 
         # Act
-        results = run([:error?, :error_description?], cases)
+        results = run(Syntax, [:error?, :error_description?], cases)
 
         # Assert
         assert_matches(results)
@@ -205,7 +189,7 @@ defmodule Oat.OAuth2.SyntaxTest do
         cases = [{unquote(input), unquote(expected)}]
 
         # Act
-        results = run([:expires_in?], cases)
+        results = run(Syntax, [:expires_in?], cases)
 
         # Assert
         assert_matches(results)
@@ -220,7 +204,7 @@ defmodule Oat.OAuth2.SyntaxTest do
         cases = all([unquote(char)], true)
 
         # Act
-        results = run([:name?], cases)
+        results = run(Syntax, [:name?], cases)
 
         # Assert
         assert_matches(results)
@@ -234,7 +218,7 @@ defmodule Oat.OAuth2.SyntaxTest do
         cases = all([unquote(char)], false)
 
         # Act
-        results = run([:name?], cases)
+        results = run(Syntax, [:name?], cases)
 
         # Assert
         assert_matches(results)
@@ -249,7 +233,7 @@ defmodule Oat.OAuth2.SyntaxTest do
         cases = all([unquote(char)], true)
 
         # Act
-        results = run([:response_type?], cases)
+        results = run(Syntax, [:response_type?], cases)
 
         # Assert
         assert_matches(results)
@@ -263,7 +247,9 @@ defmodule Oat.OAuth2.SyntaxTest do
         input = unquote(char)
 
         # Act
-        results = run([:response_type?], [{input, false}]) ++ run([:name?], [{input, true}])
+        results =
+          run(Syntax, [:response_type?], [{input, false}]) ++
+            run(Syntax, [:name?], [{input, true}])
 
         # Assert
         assert_matches(results)
@@ -300,7 +286,7 @@ defmodule Oat.OAuth2.SyntaxTest do
         cases = [{unquote(input), unquote(expected)}]
 
         # Act
-        results = run([:username?, :password?], cases)
+        results = run(Syntax, [:username?, :password?], cases)
 
         # Assert
         assert_matches(results)
@@ -314,7 +300,7 @@ defmodule Oat.OAuth2.SyntaxTest do
       cases = all(["a", "a b", "a b c"], true)
 
       # Act
-      results = run([:scope?, :response_type?], cases)
+      results = run(Syntax, [:scope?, :response_type?], cases)
 
       # Assert
       assert_matches(results)
@@ -325,7 +311,7 @@ defmodule Oat.OAuth2.SyntaxTest do
       cases = all([" a", "a ", "a  b", " "], false)
 
       # Act
-      results = run([:scope?, :response_type?], cases)
+      results = run(Syntax, [:scope?, :response_type?], cases)
 
       # Assert
       assert_matches(results)
@@ -337,7 +323,8 @@ defmodule Oat.OAuth2.SyntaxTest do
       bad_response_types = all(["a- b c", "a b- c", "a b c-"], false)
 
       # Act
-      results = run([:scope?], bad_scopes) ++ run([:response_type?], bad_response_types)
+      results =
+        run(Syntax, [:scope?], bad_scopes) ++ run(Syntax, [:response_type?], bad_response_types)
 
       # Assert
       assert_matches(results)
@@ -348,7 +335,7 @@ defmodule Oat.OAuth2.SyntaxTest do
       cases = all(["a\tb", "a\nb"], false)
 
       # Act
-      results = run([:scope?, :response_type?], cases)
+      results = run(Syntax, [:scope?, :response_type?], cases)
 
       # Assert
       assert_matches(results)
@@ -361,7 +348,7 @@ defmodule Oat.OAuth2.SyntaxTest do
       cases = all(["authorization_code", "Bearer"], true)
 
       # Act
-      results = run([:grant_type?, :token_type?], cases)
+      results = run(Syntax, [:grant_type?, :token_type?], cases)
 
       # Assert
       assert_matches(results)
@@ -372,7 +359,7 @@ defmodule Oat.OAuth2.SyntaxTest do
       cases = all(["urn:ietf:params:oauth:grant-type:jwt-bearer", "https://x/y"], true)
 
       # Act
-      results = run([:grant_type?, :token_type?], cases)
+      results = run(Syntax, [:grant_type?, :token_type?], cases)
 
       # Assert
       assert_matches(results)
@@ -383,7 +370,7 @@ defmodule Oat.OAuth2.SyntaxTest do
       cases = all(["a b", ""], false)
 
       # Act
-      results = run([:grant_type?, :token_type?], cases)
+      results = run(Syntax, [:grant_type?, :token_type?], cases)
 
       # Assert
       assert_matches(results)
@@ -396,7 +383,7 @@ defmodule Oat.OAuth2.SyntaxTest do
       cases = all(["https://example.com/cb?x=1#f"], true)
 
       # Act
-      results = run([:uri_reference?], cases)
+      results = run(Syntax, [:uri_reference?], cases)
 
       # Assert
       assert_matches(results)
@@ -407,7 +394,7 @@ defmodule Oat.OAuth2.SyntaxTest do
       cases = all(["/cb", "cb", "?x=1", "#frag"], true)
 
       # Act
-      results = run([:uri_reference?], cases)
+      results = run(Syntax, [:uri_reference?], cases)
 
       # Assert
       assert_matches(results)
@@ -418,7 +405,7 @@ defmodule Oat.OAuth2.SyntaxTest do
       cases = all([""], false)
 
       # Act
-      results = run([:uri_reference?], cases)
+      results = run(Syntax, [:uri_reference?], cases)
 
       # Assert
       assert_matches(results)
@@ -429,7 +416,7 @@ defmodule Oat.OAuth2.SyntaxTest do
       cases = all(["http://[bad", "a b", <<0xFF>>], false)
 
       # Act
-      results = run([:uri_reference?], cases)
+      results = run(Syntax, [:uri_reference?], cases)
 
       # Assert
       assert_matches(results)
@@ -448,7 +435,7 @@ defmodule Oat.OAuth2.SyntaxTest do
       ]
 
       # Act
-      results = for {fun, input} <- happy_paths, do: hd(run([fun], [{input, true}]))
+      results = for {fun, input} <- happy_paths, do: hd(run(Syntax, [fun], [{input, true}]))
 
       # Assert
       assert_matches(results)
@@ -465,7 +452,7 @@ defmodule Oat.OAuth2.SyntaxTest do
       ]
 
       # Act
-      results = Enum.flat_map(cases, fn {fun, fun_cases} -> run([fun], fun_cases) end)
+      results = Enum.flat_map(cases, fn {fun, fun_cases} -> run(Syntax, [fun], fun_cases) end)
 
       # Assert
       assert_matches(results)
@@ -506,7 +493,7 @@ defmodule Oat.OAuth2.SyntaxTest do
         cases = for input <- @samples, do: {input, apply(Syntax, reference, [input])}
 
         # Act
-        results = run(others, cases)
+        results = run(Syntax, others, cases)
 
         # Assert
         assert_matches(results)

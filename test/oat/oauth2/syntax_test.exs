@@ -71,7 +71,7 @@ defmodule Oat.OAuth2.SyntaxTest do
   end
 
   describe "empty and single-character input" do
-    test "* rules accept the empty string" do
+    test "rules that allow zero characters accept the empty string" do
       # Arrange
       cases = [{"", true}]
 
@@ -82,7 +82,7 @@ defmodule Oat.OAuth2.SyntaxTest do
       assert_as_expected(results)
     end
 
-    test "1* rules reject the empty string" do
+    test "rules that need at least one character reject the empty string" do
       # Arrange
       cases = [{"", false}]
 
@@ -93,7 +93,7 @@ defmodule Oat.OAuth2.SyntaxTest do
       assert_as_expected(results)
     end
 
-    test "1* rules accept a single valid character" do
+    test "rules that need at least one character accept a single valid character" do
       # Arrange
       letter_funs = [:state?, :code?, :access_token?, :refresh_token?]
       name_funs = [:scope_token?, :error?, :error_description?, :name?]

@@ -62,112 +62,139 @@ defmodule Oat.OAuth2.SyntaxTest do
     end
   end
 
-  describe "VSCHAR (%x20-7E)" do
-    test "boundaries" do
-      check(@vschar_funs, <<0x1F>>, false)
-      check(@vschar_funs, " ", true)
-      check(@vschar_funs, "~", true)
-      check(@vschar_funs, <<0x7F>>, false)
-    end
+  # Each case below is one test: the input is arranged in the table, `check/3`
+  # acts on every function listed for the rule, and asserts the expected result.
 
-    test "control and non-ASCII characters" do
-      for input <- ["\t", "\n", "\r", "é"], do: check(@vschar_funs, input, false)
+  describe "VSCHAR (%x20-7E)" do
+    for {label, input, expected} <- [
+          {"0x1F is rejected", <<0x1F>>, false},
+          {"space (0x20) is accepted", " ", true},
+          {"~ (0x7E) is accepted", "~", true},
+          {"DEL (0x7F) is rejected", <<0x7F>>, false},
+          {"tab is rejected", "\t", false},
+          {"newline is rejected", "\n", false},
+          {"carriage return is rejected", "\r", false},
+          {"non-ASCII é is rejected", "é", false}
+        ] do
+      test label do
+        check(@vschar_funs, unquote(input), unquote(expected))
+      end
     end
   end
 
   describe "NQCHAR (scope_token?)" do
-    test "boundaries" do
-      refute Syntax.scope_token?(" ")
-      assert Syntax.scope_token?("!")
-      refute Syntax.scope_token?(~s("))
-      assert Syntax.scope_token?("#")
-      assert Syntax.scope_token?("[")
-      refute Syntax.scope_token?("\\")
-      assert Syntax.scope_token?("]")
-      assert Syntax.scope_token?("~")
-      refute Syntax.scope_token?(<<0x7F>>)
-      refute Syntax.scope_token?("é")
+    for {label, input, expected} <- [
+          {"space is rejected", " ", false},
+          {"! (0x21) is accepted", "!", true},
+          {"double quote (0x22) is rejected", ~s("), false},
+          {"# (0x23) is accepted", "#", true},
+          {"[ (0x5B) is accepted", "[", true},
+          {"backslash (0x5C) is rejected", "\\", false},
+          {"] (0x5D) is accepted", "]", true},
+          {"~ (0x7E) is accepted", "~", true},
+          {"DEL (0x7F) is rejected", <<0x7F>>, false},
+          {"non-ASCII é is rejected", "é", false}
+        ] do
+      test label do
+        check([:scope_token?], unquote(input), unquote(expected))
+      end
     end
   end
 
   describe "NQSCHAR (error?, error_description?)" do
-    test "same as NQCHAR except space is allowed" do
-      check([:error?, :error_description?], " ", true)
-      check([:error?, :error_description?], "!", true)
-      check([:error?, :error_description?], ~s("), false)
-      check([:error?, :error_description?], "\\", false)
-      check([:error?, :error_description?], "[", true)
-      check([:error?, :error_description?], "]", true)
-      check([:error?, :error_description?], "~", true)
-      check([:error?, :error_description?], "\t", false)
-      check([:error?, :error_description?], <<0x7F>>, false)
-      check([:error?, :error_description?], "é", false)
+    for {label, input, expected} <- [
+          {"space is accepted", " ", true},
+          {"! (0x21) is accepted", "!", true},
+          {"double quote (0x22) is rejected", ~s("), false},
+          {"[ (0x5B) is accepted", "[", true},
+          {"backslash (0x5C) is rejected", "\\", false},
+          {"] (0x5D) is accepted", "]", true},
+          {"~ (0x7E) is accepted", "~", true},
+          {"tab is rejected", "\t", false},
+          {"DEL (0x7F) is rejected", <<0x7F>>, false},
+          {"non-ASCII é is rejected", "é", false}
+        ] do
+      test label do
+        check([:error?, :error_description?], unquote(input), unquote(expected))
+      end
     end
   end
 
   describe "DIGIT (expires_in?)" do
-    test "boundaries and non-digit input" do
-      assert Syntax.expires_in?("0")
-      assert Syntax.expires_in?("9")
-      refute Syntax.expires_in?("/")
-      refute Syntax.expires_in?(":")
-
-      for input <- ["-1", "+1", "1.5", "12a", "1 2"], do: refute(Syntax.expires_in?(input))
+    for {label, input, expected} <- [
+          {"0 is accepted", "0", true},
+          {"9 is accepted", "9", true},
+          {"/ (0x2F) is rejected", "/", false},
+          {": (0x3A) is rejected", ":", false},
+          {"negative sign is rejected", "-1", false},
+          {"positive sign is rejected", "+1", false},
+          {"decimal point is rejected", "1.5", false},
+          {"trailing letter is rejected", "12a", false},
+          {"embedded space is rejected", "1 2", false}
+        ] do
+      test label do
+        check([:expires_in?], unquote(input), unquote(expected))
+      end
     end
   end
 
   describe "name-char (name?)" do
-    test "accepted characters" do
-      for input <- ~w(a z A Z 0 9 - . _), do: assert(Syntax.name?(input))
+    for char <- ~w(a z A Z 0 9 - . _) do
+      test "#{char} is accepted" do
+        check([:name?], unquote(char), true)
+      end
     end
 
-    test "characters adjacent to the ranges are rejected" do
-      for input <- ["@", "[", "`", "{", "/", ":", " "], do: refute(Syntax.name?(input))
+    # characters just outside the letter and digit ranges, plus separators
+    for char <- ["@", "[", "`", "{", "/", ":", " "] do
+      test "#{inspect(char)} is rejected" do
+        check([:name?], unquote(char), false)
+      end
     end
   end
 
   describe "response-char (response_type?)" do
-    test "alphanumerics and underscore are accepted" do
-      for input <- ~w(a Z 0 9 _), do: assert(Syntax.response_type?(input))
+    for char <- ~w(a Z 0 9 _) do
+      test "#{char} is accepted" do
+        check([:response_type?], unquote(char), true)
+      end
     end
 
-    test "narrower than name-char: - and . are rejected" do
-      refute Syntax.response_type?("a-b")
-      refute Syntax.response_type?("a.b")
-      assert Syntax.name?("a-b")
-      assert Syntax.name?("a.b")
+    # narrower than name-char, so the two are not confused
+    for char <- ["a-b", "a.b"] do
+      test "#{char} is rejected by response_type? but accepted by name?" do
+        check([:response_type?], unquote(char), false)
+        check([:name?], unquote(char), true)
+      end
     end
   end
 
   describe "UNICODECHARNOCRLF (username?, password?)" do
-    test "ASCII range" do
-      check([:username?, :password?], "\t", true)
-      check([:username?, :password?], "\n", false)
-      check([:username?, :password?], "\r", false)
-      check([:username?, :password?], "\r\n", false)
-      check([:username?, :password?], <<0x08>>, false)
-      check([:username?, :password?], <<0x1F>>, false)
-      check([:username?, :password?], " ", true)
-      check([:username?, :password?], "~", true)
-      check([:username?, :password?], <<0x7F>>, false)
-    end
-
-    test "NUL is not in the grammar" do
-      check([:username?, :password?], <<0>>, false)
-    end
-
-    test "non-ASCII ranges and their boundaries" do
-      for input <- ["\u0080", "퟿", "", "�", "\u{10000}", "\u{10FFFF}"] do
-        check([:username?, :password?], input, true)
-      end
-
-      # valid UTF-8, but noncharacters outside the grammar
-      for input <- ["￾", "￿"], do: check([:username?, :password?], input, false)
-    end
-
-    test "invalid UTF-8" do
-      for input <- [<<0xFF>>, <<0xED, 0xA0, 0x80>>, <<0xE2, 0x82>>] do
-        check([:username?, :password?], input, false)
+    for {label, input, expected} <- [
+          {"tab (0x09) is accepted", "\t", true},
+          {"newline is rejected", "\n", false},
+          {"carriage return is rejected", "\r", false},
+          {"CRLF is rejected", "\r\n", false},
+          {"NUL is rejected", <<0x00>>, false},
+          {"0x08 is rejected", <<0x08>>, false},
+          {"0x1F is rejected", <<0x1F>>, false},
+          {"space (0x20) is accepted", " ", true},
+          {"~ (0x7E) is accepted", "~", true},
+          {"DEL (0x7F) is rejected", <<0x7F>>, false},
+          {"U+0080 is accepted", <<0x80::utf8>>, true},
+          {"U+D7FF is accepted", <<0xD7FF::utf8>>, true},
+          {"U+E000 is accepted", <<0xE000::utf8>>, true},
+          {"U+FFFD is accepted", <<0xFFFD::utf8>>, true},
+          {"U+FFFE is rejected (valid UTF-8 but not in the grammar)", <<0xFFFE::utf8>>, false},
+          {"U+FFFF is rejected (valid UTF-8 but not in the grammar)", <<0xFFFF::utf8>>, false},
+          {"U+10000 is accepted", <<0x10000::utf8>>, true},
+          {"U+10FFFF is accepted", <<0x10FFFF::utf8>>, true},
+          {"invalid byte 0xFF is rejected", <<0xFF>>, false},
+          {"encoded surrogate is rejected", <<0xED, 0xA0, 0x80>>, false},
+          {"truncated sequence is rejected", <<0xE2, 0x82>>, false}
+        ] do
+      test label do
+        check([:username?, :password?], unquote(input), unquote(expected))
       end
     end
   end

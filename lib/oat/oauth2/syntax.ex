@@ -62,7 +62,7 @@ defmodule Oat.OAuth2.Syntax do
 
   @doc "`redirect_uri` (A.6) and `error_uri` (A.9): an RFC 3986 URI-reference."
   def uri_reference?(value) when is_binary(value) and value != "" do
-    match?({:ok, _}, URI.new(value))
+    String.valid?(value) and match?({:ok, _}, URI.new(value))
   end
 
   def uri_reference?(_), do: false

@@ -16,9 +16,7 @@ defmodule Oat.OAuth2.SyntaxTest do
     :error?,
     :error_description?,
     :expires_in?,
-    :name?
-  ]
-  @composite [
+    :name?,
     :scope?,
     :response_type?,
     :grant_type?,
@@ -38,9 +36,7 @@ defmodule Oat.OAuth2.SyntaxTest do
   describe "coverage guard" do
     test "every public function is classified by minimum length" do
       assert Enum.sort(@all_funs) ==
-               Enum.sort(
-                 @expects_zero_or_more_characters ++ @expects_one_or_more_characters ++ @composite
-               ),
+               Enum.sort(@expects_zero_or_more_characters ++ @expects_one_or_more_characters),
              "add new validators to a minimum-length group"
     end
   end
@@ -63,10 +59,6 @@ defmodule Oat.OAuth2.SyntaxTest do
       check([:state?, :code?, :access_token?, :refresh_token?], "a", true)
       check([:scope_token?, :error?, :error_description?, :name?], "a", true)
       check([:expires_in?], "0", true)
-    end
-
-    test "composite rules reject the empty string" do
-      check(@composite, "", false)
     end
   end
 

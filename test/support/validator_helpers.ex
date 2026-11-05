@@ -8,7 +8,7 @@ defmodule Oat.ValidatorHelpers do
 
       test "empty string is accepted" do
         # Arrange
-        cases = expect_all([""], true)
+        cases = [{"", true}]
 
         # Act
         results = run(MyValidator, [:client_id?], cases)
@@ -40,7 +40,4 @@ defmodule Oat.ValidatorHelpers do
 
     :ok
   end
-
-  @doc "Builds `{input, expected}` cases that all share one expected result."
-  def expect_all(inputs, expected), do: for(input <- inputs, do: {input, expected})
 end

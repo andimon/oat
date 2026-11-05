@@ -39,8 +39,14 @@ defmodule Oat.OAuth2.SyntaxTest do
       unknown = classified -- public
 
       # Assert
-      assert unclassified == [], "add new validators to a minimum-length group"
-      assert unknown == [], "these functions are not public validators"
+      assert unclassified == [],
+             "Defined in #{inspect(Syntax)} but not in a group: #{inspect(unclassified)}. " <>
+               "Add them to @expects_zero_or_more_characters or " <>
+               "@expects_one_or_more_characters in #{inspect(__MODULE__)}."
+
+      assert unknown == [],
+             "Listed in a group but not defined in #{inspect(Syntax)}: #{inspect(unknown)}. " <>
+               "Check for a typo or a renamed function."
     end
   end
 

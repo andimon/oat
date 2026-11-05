@@ -53,7 +53,7 @@ defmodule Oat.OAuth2.SyntaxTest do
   describe "input that is not a string" do
     test "every function returns false" do
       # Arrange
-      cases = all([nil, 1, :atom, ~c"abc", ["a"], %{}], false)
+      cases = expect_all([nil, 1, :atom, ~c"abc", ["a"], %{}], false)
 
       # Act
       results = run(Syntax, @all_funs, cases)
@@ -66,7 +66,7 @@ defmodule Oat.OAuth2.SyntaxTest do
   describe "empty and single-character input" do
     test "* rules accept the empty string" do
       # Arrange
-      cases = all([""], true)
+      cases = expect_all([""], true)
 
       # Act
       results = run(Syntax, @expects_zero_or_more_characters, cases)
@@ -77,7 +77,7 @@ defmodule Oat.OAuth2.SyntaxTest do
 
     test "1* rules reject the empty string" do
       # Arrange
-      cases = all([""], false)
+      cases = expect_all([""], false)
 
       # Act
       results = run(Syntax, @expects_one_or_more_characters, cases)
@@ -93,9 +93,9 @@ defmodule Oat.OAuth2.SyntaxTest do
 
       # Act
       results =
-        run(Syntax, letter_funs, all(["a"], true)) ++
-          run(Syntax, name_funs, all(["a"], true)) ++
-          run(Syntax, [:expires_in?], all(["0"], true))
+        run(Syntax, letter_funs, expect_all(["a"], true)) ++
+          run(Syntax, name_funs, expect_all(["a"], true)) ++
+          run(Syntax, [:expires_in?], expect_all(["0"], true))
 
       # Assert
       assert_matches(results)
@@ -207,7 +207,7 @@ defmodule Oat.OAuth2.SyntaxTest do
     for char <- ~w(a z A Z 0 9 - . _) do
       test "#{char} is accepted" do
         # Arrange
-        cases = all([unquote(char)], true)
+        cases = expect_all([unquote(char)], true)
 
         # Act
         results = run(Syntax, [:name?], cases)
@@ -221,7 +221,7 @@ defmodule Oat.OAuth2.SyntaxTest do
     for char <- ["@", "[", "`", "{", "/", ":", " "] do
       test "#{inspect(char)} is rejected" do
         # Arrange
-        cases = all([unquote(char)], false)
+        cases = expect_all([unquote(char)], false)
 
         # Act
         results = run(Syntax, [:name?], cases)
@@ -236,7 +236,7 @@ defmodule Oat.OAuth2.SyntaxTest do
     for char <- ~w(a Z 0 9 _) do
       test "#{char} is accepted" do
         # Arrange
-        cases = all([unquote(char)], true)
+        cases = expect_all([unquote(char)], true)
 
         # Act
         results = run(Syntax, [:response_type?], cases)
@@ -303,7 +303,7 @@ defmodule Oat.OAuth2.SyntaxTest do
   describe "lists separated by spaces: scope?, response_type?" do
     test "one, two and three tokens are accepted" do
       # Arrange
-      cases = all(["a", "a b", "a b c"], true)
+      cases = expect_all(["a", "a b", "a b c"], true)
 
       # Act
       results = run(Syntax, [:scope?, :response_type?], cases)
@@ -314,7 +314,7 @@ defmodule Oat.OAuth2.SyntaxTest do
 
     test "empty tokens are rejected" do
       # Arrange
-      cases = all([" a", "a ", "a  b", " "], false)
+      cases = expect_all([" a", "a ", "a  b", " "], false)
 
       # Act
       results = run(Syntax, [:scope?, :response_type?], cases)
@@ -325,8 +325,8 @@ defmodule Oat.OAuth2.SyntaxTest do
 
     test "a bad token anywhere is rejected" do
       # Arrange
-      bad_scopes = all([~s(" b c), ~s(a " c), ~s(a b ")], false)
-      bad_response_types = all(["a- b c", "a b- c", "a b c-"], false)
+      bad_scopes = expect_all([~s(" b c), ~s(a " c), ~s(a b ")], false)
+      bad_response_types = expect_all(["a- b c", "a b- c", "a b c-"], false)
 
       # Act
       results =
@@ -338,7 +338,7 @@ defmodule Oat.OAuth2.SyntaxTest do
 
     test "only a space separates tokens" do
       # Arrange
-      cases = all(["a\tb", "a\nb"], false)
+      cases = expect_all(["a\tb", "a\nb"], false)
 
       # Act
       results = run(Syntax, [:scope?, :response_type?], cases)
@@ -351,7 +351,7 @@ defmodule Oat.OAuth2.SyntaxTest do
   describe "a name or a URI: grant_type?, token_type?" do
     test "a name is accepted" do
       # Arrange
-      cases = all(["authorization_code", "Bearer"], true)
+      cases = expect_all(["authorization_code", "Bearer"], true)
 
       # Act
       results = run(Syntax, [:grant_type?, :token_type?], cases)
@@ -362,7 +362,7 @@ defmodule Oat.OAuth2.SyntaxTest do
 
     test "a URI that is not a name is accepted" do
       # Arrange
-      cases = all(["urn:ietf:params:oauth:grant-type:jwt-bearer", "https://x/y"], true)
+      cases = expect_all(["urn:ietf:params:oauth:grant-type:jwt-bearer", "https://x/y"], true)
 
       # Act
       results = run(Syntax, [:grant_type?, :token_type?], cases)
@@ -373,7 +373,7 @@ defmodule Oat.OAuth2.SyntaxTest do
 
     test "neither a name nor a URI is rejected" do
       # Arrange
-      cases = all(["a b", ""], false)
+      cases = expect_all(["a b", ""], false)
 
       # Act
       results = run(Syntax, [:grant_type?, :token_type?], cases)
@@ -386,7 +386,7 @@ defmodule Oat.OAuth2.SyntaxTest do
   describe "URI references: uri_reference?" do
     test "an absolute URI is accepted" do
       # Arrange
-      cases = all(["https://example.com/cb?x=1#f"], true)
+      cases = expect_all(["https://example.com/cb?x=1#f"], true)
 
       # Act
       results = run(Syntax, [:uri_reference?], cases)
@@ -397,7 +397,7 @@ defmodule Oat.OAuth2.SyntaxTest do
 
     test "relative references are accepted" do
       # Arrange
-      cases = all(["/cb", "cb", "?x=1", "#frag"], true)
+      cases = expect_all(["/cb", "cb", "?x=1", "#frag"], true)
 
       # Act
       results = run(Syntax, [:uri_reference?], cases)
@@ -408,7 +408,7 @@ defmodule Oat.OAuth2.SyntaxTest do
 
     test "the empty string is rejected on purpose" do
       # Arrange
-      cases = all([""], false)
+      cases = expect_all([""], false)
 
       # Act
       results = run(Syntax, [:uri_reference?], cases)
@@ -419,7 +419,7 @@ defmodule Oat.OAuth2.SyntaxTest do
 
     test "malformed input is rejected" do
       # Arrange
-      cases = all(["http://[bad", "a b", <<0xFF>>], false)
+      cases = expect_all(["http://[bad", "a b", <<0xFF>>], false)
 
       # Act
       results = run(Syntax, [:uri_reference?], cases)

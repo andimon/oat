@@ -10,18 +10,6 @@ defmodule Oat.OAuth2.Syntax do
       UNICODECHARNOCRLF = %x09 / %x20-7E / %x80-D7FF / %xE000-FFFD / %x10000-10FFFF
   """
 
-  defp vschar?(c), do: c in 0x20..0x7E
-  defp nqchar?(c), do: c == 0x21 or c in 0x23..0x5B or c in 0x5D..0x7E
-  defp nqschar?(c), do: c == 0x20 or nqchar?(c)
-  defp alnum?(c), do: c in ?a..?z or c in ?A..?Z or c in ?0..?9
-  defp name_char?(c), do: alnum?(c) or c in [?-, ?., ?_]
-  defp response_char?(c), do: alnum?(c) or c == ?_
-
-  defp unicode_char_no_crlf?(c) do
-    c == 0x09 or c in 0x20..0x7E or c in 0x80..0xD7FF or c in 0xE000..0xFFFD or
-      c in 0x10000..0x10FFFF
-  end
-
   @doc "`client_id` and `client_secret` (A.1, A.2): `*VSCHAR`."
   def client_id?(value), do: all?(value, &vschar?/1, 0)
   def client_secret?(value), do: all?(value, &vschar?/1, 0)
@@ -85,4 +73,18 @@ defmodule Oat.OAuth2.Syntax do
   end
 
   defp all?(_, _, _), do: false
+
+  ## Character classes
+
+  defp vschar?(c), do: c in 0x20..0x7E
+  defp nqchar?(c), do: c == 0x21 or c in 0x23..0x5B or c in 0x5D..0x7E
+  defp nqschar?(c), do: c == 0x20 or nqchar?(c)
+  defp alnum?(c), do: c in ?a..?z or c in ?A..?Z or c in ?0..?9
+  defp name_char?(c), do: alnum?(c) or c in [?-, ?., ?_]
+  defp response_char?(c), do: alnum?(c) or c == ?_
+
+  defp unicode_char_no_crlf?(c) do
+    c == 0x09 or c in 0x20..0x7E or c in 0x80..0xD7FF or c in 0xE000..0xFFFD or
+      c in 0x10000..0x10FFFF
+  end
 end

@@ -28,7 +28,7 @@ defmodule Oat.OAuth2.SyntaxTest do
 
   @vschar_funs [:client_id?, :client_secret?, :state?, :code?, :access_token?, :refresh_token?]
 
-  describe "coverage guard" do
+  describe "every validator is in a group" do
     test "every public function is classified by minimum length" do
       # Arrange
       public = @all_funs
@@ -44,7 +44,7 @@ defmodule Oat.OAuth2.SyntaxTest do
     end
   end
 
-  describe "non-binary input" do
+  describe "input that is not a string" do
     test "every function returns false" do
       # Arrange
       cases = all([nil, 1, :atom, ~c"abc", ["a"], %{}], false)
@@ -57,7 +57,7 @@ defmodule Oat.OAuth2.SyntaxTest do
     end
   end
 
-  describe "minimum length" do
+  describe "empty and single-character input" do
     test "* rules accept the empty string" do
       # Arrange
       cases = all([""], true)
@@ -96,7 +96,7 @@ defmodule Oat.OAuth2.SyntaxTest do
     end
   end
 
-  describe "VSCHAR (%x20-7E)" do
+  describe "printable ASCII (VSCHAR): client_id?, state?, code?, tokens" do
     for {label, input, expected} <- [
           {"0x1F is rejected", <<0x1F>>, false},
           {"space (0x20) is accepted", " ", true},
@@ -120,7 +120,7 @@ defmodule Oat.OAuth2.SyntaxTest do
     end
   end
 
-  describe "NQCHAR (scope_token?)" do
+  describe "scope token characters (NQCHAR): scope_token?" do
     for {label, input, expected} <- [
           {"space is rejected", " ", false},
           {"! (0x21) is accepted", "!", true},
@@ -146,7 +146,7 @@ defmodule Oat.OAuth2.SyntaxTest do
     end
   end
 
-  describe "NQSCHAR (error?, error_description?)" do
+  describe "error text characters (NQSCHAR): error?, error_description?" do
     for {label, input, expected} <- [
           {"space is accepted", " ", true},
           {"! (0x21) is accepted", "!", true},
@@ -172,7 +172,7 @@ defmodule Oat.OAuth2.SyntaxTest do
     end
   end
 
-  describe "DIGIT (expires_in?)" do
+  describe "digits only (DIGIT): expires_in?" do
     for {label, input, expected} <- [
           {"0 is accepted", "0", true},
           {"9 is accepted", "9", true},
@@ -197,7 +197,7 @@ defmodule Oat.OAuth2.SyntaxTest do
     end
   end
 
-  describe "name-char (name?)" do
+  describe "name characters: name?" do
     for char <- ~w(a z A Z 0 9 - . _) do
       test "#{char} is accepted" do
         # Arrange
@@ -226,7 +226,7 @@ defmodule Oat.OAuth2.SyntaxTest do
     end
   end
 
-  describe "response-char (response_type?)" do
+  describe "response type characters: response_type?" do
     for char <- ~w(a Z 0 9 _) do
       test "#{char} is accepted" do
         # Arrange
@@ -257,7 +257,7 @@ defmodule Oat.OAuth2.SyntaxTest do
     end
   end
 
-  describe "UNICODECHARNOCRLF (username?, password?)" do
+  describe "username and password characters (UNICODECHARNOCRLF)" do
     for {label, input, expected} <- [
           {"tab (0x09) is accepted", "\t", true},
           {"newline is rejected", "\n", false},
@@ -294,7 +294,7 @@ defmodule Oat.OAuth2.SyntaxTest do
     end
   end
 
-  describe "space-delimited lists (scope?, response_type?)" do
+  describe "lists separated by spaces: scope?, response_type?" do
     test "one, two and three tokens are accepted" do
       # Arrange
       cases = all(["a", "a b", "a b c"], true)
@@ -342,7 +342,7 @@ defmodule Oat.OAuth2.SyntaxTest do
     end
   end
 
-  describe "name / URI-reference alternation (grant_type?, token_type?)" do
+  describe "a name or a URI: grant_type?, token_type?" do
     test "a name is accepted" do
       # Arrange
       cases = all(["authorization_code", "Bearer"], true)
@@ -377,7 +377,7 @@ defmodule Oat.OAuth2.SyntaxTest do
     end
   end
 
-  describe "uri_reference?" do
+  describe "URI references: uri_reference?" do
     test "an absolute URI is accepted" do
       # Arrange
       cases = all(["https://example.com/cb?x=1#f"], true)
@@ -423,7 +423,7 @@ defmodule Oat.OAuth2.SyntaxTest do
     end
   end
 
-  describe "realistic values and single bad characters" do
+  describe "normal values and one bad character" do
     test "happy paths are accepted" do
       # Arrange
       happy_paths = [
@@ -459,7 +459,7 @@ defmodule Oat.OAuth2.SyntaxTest do
     end
   end
 
-  describe "functions documented as identical agree" do
+  describe "validators with the same rule give the same answers" do
     @samples [
       "",
       " ",

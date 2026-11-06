@@ -1,6 +1,6 @@
 defmodule Oat.OAuth2.Error do
   @moduledoc """
-  OAuth 2.0 error responses (RFC 6749 §4.1.2.1, §5.2).
+  OAuth 2.0 error responses: RFC 6749 (https://www.rfc-editor.org/rfc/rfc6749) §4.1.2.1, §5.2.
 
   The same struct serves both endpoints:
 
@@ -56,6 +56,26 @@ defmodule Oat.OAuth2.Error do
       do: raise(ArgumentError, "error uri must be a URI reference")
 
     error
+  end
+
+  @doc """
+  The `error_description` for a repeated parameter (§3.1, §3.2).
+
+  The name comes from the request, so it is named only when it is a valid
+  `param-name` (A.18). Anything else could break the description's character
+  set (A.8).
+
+      iex> Oat.OAuth2.Error.repeated_description("scope")
+      "The scope parameter is repeated"
+
+      iex> Oat.OAuth2.Error.repeated_description(~s(a"b))
+      "A parameter is repeated"
+  """
+  @spec repeated_description(String.t()) :: String.t()
+  def repeated_description(name) do
+    if Syntax.name?(name),
+      do: "The #{name} parameter is repeated",
+      else: "A parameter is repeated"
   end
 
   @doc """

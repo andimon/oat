@@ -123,4 +123,20 @@ defmodule OatWeb.AuthorizeControllerTest do
       assert html_response(no_decision, 400) =~ "invalid_request"
     end
   end
+
+  describe "failures after validation" do
+    @tag :capture_log
+    test "are redirected to the client as server_error", %{conn: conn, client: client} do
+      # Arrange: PostgreSQL rejects NUL in text, so storing the code fails.
+      conn = Plug.Test.init_test_session(conn, %{"resource_owner_id" => "a\0b"})
+      params = %{"request" => authorize_query(client), "decision" => "approve"}
+
+      # Act
+      conn = post(conn, "/oauth/authorize", params)
+
+      # Assert
+      assert %{"error" => "server_error", "state" => "xyz"} =
+               conn |> redirected_to(302) |> redirect_params()
+    end
+  end
 end

@@ -1,6 +1,6 @@
 defmodule Oat.OAuth2.Client do
   @moduledoc """
-  A registered client (RFC 6749 §2).
+  A registered client: RFC 6749 §2 (https://www.rfc-editor.org/rfc/rfc6749#section-2).
 
   The primary key is the client identifier (§2.2). A client with a secret is
   confidential and must authenticate at the token endpoint; a client without
@@ -14,6 +14,10 @@ defmodule Oat.OAuth2.Client do
   alias Oat.OAuth2.{RedirectURI, Syntax}
 
   @type t :: %__MODULE__{}
+
+  # Authorization response parameters (§4.1.2, §4.1.2.1). They are added to the
+  # redirect URI's query, and must not appear in it twice (§3.1).
+  @response_params ~w(code state error error_description error_uri)
 
   @primary_key {:id, :string, autogenerate: false}
 
@@ -37,9 +41,16 @@ defmodule Oat.OAuth2.Client do
     end)
     |> validate_redirect_uris_present()
     |> validate_change(:redirect_uris, fn :redirect_uris, uris ->
-      if Enum.all?(uris, &RedirectURI.valid?/1),
-        do: [],
-        else: [redirect_uris: "must be absolute URIs without a fragment"]
+      cond do
+        not Enum.all?(uris, &RedirectURI.valid?/1) ->
+          [redirect_uris: "must be absolute URIs without a fragment"]
+
+        Enum.any?(uris, &has_response_params?/1) ->
+          [redirect_uris: "must not include the #{Enum.join(@response_params, ", ")} parameters"]
+
+        true ->
+          []
+      end
     end)
     |> validate_change(:scopes, &validate_scope_tokens/2)
     |> validate_change(:default_scopes, &validate_scope_tokens/2)
@@ -49,6 +60,11 @@ defmodule Oat.OAuth2.Client do
 
   @doc "Whether the client is confidential, i.e. has a secret (§2.1)."
   def confidential?(%__MODULE__{secret_hash: hash}), do: is_binary(hash)
+
+  defp has_response_params?(uri) do
+    query = URI.parse(uri).query || ""
+    query |> URI.query_decoder(:www_form) |> Enum.any?(fn {k, _} -> k in @response_params end)
+  end
 
   defp validate_scope_tokens(field, tokens) do
     if Enum.all?(tokens, &Syntax.scope_token?/1),

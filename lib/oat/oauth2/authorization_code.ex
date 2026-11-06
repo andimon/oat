@@ -1,6 +1,7 @@
 defmodule Oat.OAuth2.AuthorizationCode do
   @moduledoc """
-  An authorization code issued by the authorization endpoint (RFC 6749 §4.1.2).
+  An authorization code issued by the authorization endpoint: RFC 6749 §4.1.2
+  (https://www.rfc-editor.org/rfc/rfc6749#section-4.1.2).
 
   Only the hash of the code is stored. A code is bound to the client, the
   resource owner, the granted scope and, when the authorization request

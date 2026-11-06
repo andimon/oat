@@ -1,6 +1,6 @@
 defmodule OatWeb.AuthorizeController do
   @moduledoc """
-  The authorization endpoint (RFC 6749 §3.1, §4.1.1, §4.1.2).
+  The authorization endpoint: RFC 6749 (https://www.rfc-editor.org/rfc/rfc6749) §3.1, §4.1.1, §4.1.2.
 
   `GET /oauth/authorize` validates the authorization request, makes sure the
   resource owner is signed in (see `OatWeb.ResourceOwner`) and shows the
@@ -13,6 +13,8 @@ defmodule OatWeb.AuthorizeController do
 
   alias Oat.OAuth2.AuthorizationCodeGrant
   alias OatWeb.ResourceOwner
+
+  require Logger
 
   # The consent page must not be framed, against clickjacking (§10.13).
   plug :put_secure_browser_headers, %{
@@ -30,8 +32,7 @@ defmodule OatWeb.AuthorizeController do
     with_request(conn, query, fn conn, request, owner ->
       case params["decision"] do
         "approve" ->
-          {:ok, uri} = AuthorizationCodeGrant.approve(request, owner)
-          redirect(conn, external: uri)
+          redirect(conn, external: approve(request, owner))
 
         "deny" ->
           redirect(conn, external: AuthorizationCodeGrant.deny(request))
@@ -44,6 +45,22 @@ defmodule OatWeb.AuthorizeController do
 
   def create(conn, _params),
     do: bad_request(conn, "invalid_request", "The authorization request is missing")
+
+  # The request was valid, so a failure from here on goes back to the client as
+  # server_error rather than a 500 the client never sees (§4.1.2.1).
+  defp approve(request, owner) do
+    {:ok, uri} = AuthorizationCodeGrant.approve(request, owner)
+    uri
+  rescue
+    exception ->
+      Logger.error(Exception.format(:error, exception, __STACKTRACE__))
+
+      AuthorizationCodeGrant.error_redirect(
+        request,
+        :server_error,
+        "The authorization server could not issue a code"
+      )
+  end
 
   defp with_request(conn, query, fun) do
     case AuthorizationCodeGrant.validate(query) do

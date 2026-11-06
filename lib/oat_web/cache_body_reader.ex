@@ -2,7 +2,7 @@ defmodule OatWeb.CacheBodyReader do
   @moduledoc """
   Keeps the raw body of token requests in `conn.assigns.raw_body`.
 
-  RFC 6749 §3.2 forbids repeating a parameter, but `Plug.Parsers` keeps only
+  RFC 6749 §3.2 (https://www.rfc-editor.org/rfc/rfc6749#section-3.2) forbids repeating a parameter, but `Plug.Parsers` keeps only
   the last value of a repeated one. The token endpoint decodes the raw body
   itself with `Oat.OAuth2.Params.decode/1` to catch repeats.
   """

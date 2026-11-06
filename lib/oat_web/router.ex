@@ -21,7 +21,8 @@ defmodule OatWeb.Router do
     post "/authorize", AuthorizeController, :create
   end
 
-  # No pipeline: token requests need not send an Accept header (RFC 6749 §4.1.3),
+  # No pipeline: token requests need not send an Accept header, RFC 6749 §4.1.3
+  # (https://www.rfc-editor.org/rfc/rfc6749#section-4.1.3),
   # and use client authentication instead of a session or CSRF token.
   scope "/oauth", OatWeb do
     post "/token", TokenController, :create

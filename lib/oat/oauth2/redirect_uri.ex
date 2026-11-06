@@ -1,6 +1,6 @@
 defmodule Oat.OAuth2.RedirectURI do
   @moduledoc """
-  Redirection endpoint handling (RFC 6749 §3.1.2, §4.1.2).
+  Redirection endpoint handling: RFC 6749 (https://www.rfc-editor.org/rfc/rfc6749) §3.1.2, §4.1.2.
   """
 
   @doc """
@@ -24,7 +24,8 @@ defmodule Oat.OAuth2.RedirectURI do
 
   When the request leaves the parameter out, the client must have exactly one
   registered URI. When the request includes it, it must match a registered URI
-  by simple string comparison (RFC 3986 §6.2.1).
+  by simple string comparison, RFC 3986 §6.2.1
+  (https://www.rfc-editor.org/rfc/rfc3986#section-6.2.1).
 
   On error the server must not redirect to the URI; it shows the error to the
   resource owner instead (§4.1.2.1).

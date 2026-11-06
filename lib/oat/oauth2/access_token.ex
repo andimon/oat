@@ -1,6 +1,7 @@
 defmodule Oat.OAuth2.AccessToken do
   @moduledoc """
-  An access token issued by the token endpoint (RFC 6749 §1.4).
+  An access token issued by the token endpoint: RFC 6749 §1.4
+  (https://www.rfc-editor.org/rfc/rfc6749#section-1.4).
 
   Only the hash of the token is stored. `authorization_code_id` records the
   code the token was issued from, so the token can be revoked if that code is

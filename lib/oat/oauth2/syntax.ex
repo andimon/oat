@@ -1,6 +1,7 @@
 defmodule Oat.OAuth2.Syntax do
   @moduledoc """
-  Validators for the protocol element syntax in RFC 6749 Appendix A.
+  Validators for the protocol element syntax in RFC 6749 Appendix A
+  (https://www.rfc-editor.org/rfc/rfc6749#appendix-A).
 
   Every function takes a binary and returns a boolean. Non-binaries return `false`.
 
@@ -48,7 +49,10 @@ defmodule Oat.OAuth2.Syntax do
   @doc "`param-name` for extension parameters (A.18) and `grant-name`/`type-name`: `1*name-char`."
   def name?(value), do: all?(value, &name_char?/1, 1)
 
-  @doc "`redirect_uri` (A.6) and `error_uri` (A.9): an RFC 3986 URI-reference."
+  @doc """
+  `redirect_uri` (A.6) and `error_uri` (A.9): an RFC 3986 URI-reference
+  (https://www.rfc-editor.org/rfc/rfc3986#section-4.1).
+  """
   def uri_reference?(value) when is_binary(value) and value != "" do
     String.valid?(value) and match?({:ok, _}, URI.new(value))
   end

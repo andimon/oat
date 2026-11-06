@@ -1,6 +1,7 @@
 defmodule Oat.OAuth2.Scope do
   @moduledoc """
-  Access token scope handling (RFC 6749 §3.3).
+  Access token scope handling: RFC 6749 §3.3
+  (https://www.rfc-editor.org/rfc/rfc6749#section-3.3).
 
   A scope is a list of space-delimited, case-sensitive strings. Order does not
   matter, so scopes are represented as a `MapSet`.

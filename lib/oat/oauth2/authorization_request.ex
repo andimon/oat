@@ -1,6 +1,7 @@
 defmodule Oat.OAuth2.AuthorizationRequest do
   @moduledoc """
-  A validated authorization request (RFC 6749 §4.1.1), waiting for the
+  A validated authorization request, RFC 6749 §4.1.1
+  (https://www.rfc-editor.org/rfc/rfc6749#section-4.1.1), waiting for the
   resource owner's decision.
 
     * `redirect_uri` is where the response goes: the requested URI, or the

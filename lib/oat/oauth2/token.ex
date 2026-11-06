@@ -1,8 +1,8 @@
 defmodule Oat.OAuth2.Token do
   @moduledoc """
   Generation and lifetime of credentials issued by the authorization server:
-  authorization codes, access tokens and refresh tokens (RFC 6749 §4.1.2,
-  §1.4, §1.5, §10.10).
+  authorization codes, access tokens and refresh tokens. See RFC 6749
+  (https://www.rfc-editor.org/rfc/rfc6749) §4.1.2, §1.4, §1.5, §10.10.
 
   Generated values must be impossible to guess (§10.10). Here they are 256 bits
   from `:crypto.strong_rand_bytes/1`, encoded with URL-safe Base64 without

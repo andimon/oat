@@ -1,6 +1,7 @@
 defmodule Oat.OAuth2.ClientAuth do
   @moduledoc """
-  Client password authentication (RFC 6749 §2.3.1).
+  Client password authentication: RFC 6749 §2.3.1
+  (https://www.rfc-editor.org/rfc/rfc6749#section-2.3.1).
 
   The client sends its credentials either in an HTTP Basic `Authorization`
   header or as `client_id`/`client_secret` body parameters. In the header the

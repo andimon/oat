@@ -1,7 +1,7 @@
 defmodule Oat.OAuth2.Params do
   @moduledoc """
   Request parameter rules shared by the authorization and token endpoints
-  (RFC 6749 §3.1, §3.2).
+  (§3.1, §3.2 of RFC 6749, https://www.rfc-editor.org/rfc/rfc6749).
 
   * Parameters sent without a value are treated as omitted.
   * Request and response parameters must not be included more than once.

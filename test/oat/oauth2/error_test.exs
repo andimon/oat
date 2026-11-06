@@ -3,6 +3,8 @@ defmodule Oat.OAuth2.ErrorTest do
 
   alias Oat.OAuth2.Error
 
+  doctest Error
+
   test "to_params/1 leaves out empty fields" do
     error = Error.new(:access_denied, state: "xyz")
     assert Error.to_params(error) == %{"error" => "access_denied", "state" => "xyz"}

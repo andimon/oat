@@ -1,6 +1,6 @@
 defmodule Oat.OAuth2.AuthorizationCodeGrant do
   @moduledoc """
-  The authorization code grant (RFC 6749 §4.1).
+  The authorization code grant: RFC 6749 §4.1 (https://www.rfc-editor.org/rfc/rfc6749#section-4.1).
 
       +----------+
       | Resource |
@@ -120,6 +120,9 @@ defmodule Oat.OAuth2.AuthorizationCodeGrant do
       not Map.has_key?(params, "client_id") ->
         show(:invalid_request, "The client_id parameter is missing")
 
+      not Syntax.client_id?(params["client_id"]) ->
+        show(:invalid_request, "The client_id parameter is invalid")
+
       client = Clients.get(params["client_id"]) ->
         {:ok, client}
 
@@ -154,8 +157,7 @@ defmodule Oat.OAuth2.AuthorizationCodeGrant do
 
   defp check_repeated(nil), do: :ok
 
-  defp check_repeated(name),
-    do: {:error, :invalid_request, "The #{name} parameter is repeated"}
+  defp check_repeated(name), do: {:error, :invalid_request, Error.repeated_description(name)}
 
   defp check_state(%{"state" => state}) do
     if Syntax.state?(state),
@@ -222,13 +224,18 @@ defmodule Oat.OAuth2.AuthorizationCodeGrant do
   (§4.1.2.1).
   """
   @spec deny(AuthorizationRequest.t()) :: String.t()
-  def deny(%AuthorizationRequest{} = request) do
-    error =
-      Error.new(:access_denied,
-        description: "The resource owner denied the request",
-        state: request.state
-      )
+  def deny(%AuthorizationRequest{} = request),
+    do: error_redirect(request, :access_denied, "The resource owner denied the request")
 
+  @doc """
+  The redirect that reports an error to the client, with `state` (§4.1.2.1).
+
+  Use `:server_error` when something fails after the request was validated:
+  a 500 status cannot reach the client through a redirect.
+  """
+  @spec error_redirect(AuthorizationRequest.t(), Error.code(), String.t()) :: String.t()
+  def error_redirect(%AuthorizationRequest{} = request, code, description) do
+    error = Error.new(code, description: description, state: request.state)
     RedirectURI.append(request.redirect_uri, Error.to_params(error))
   end
 
@@ -267,8 +274,11 @@ defmodule Oat.OAuth2.AuthorizationCodeGrant do
 
   defp require_code(params) do
     case Params.require(params, ["code"]) do
-      {:ok, values} ->
-        {:ok, values}
+      {:ok, [code] = values} ->
+        if Syntax.code?(code),
+          do: {:ok, values},
+          else:
+            {:error, Error.new(:invalid_request, description: "The code parameter is invalid")}
 
       {:error, {:missing, _}} ->
         {:error, Error.new(:invalid_request, description: "The code parameter is missing")}

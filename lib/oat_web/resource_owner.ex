@@ -1,9 +1,9 @@
 defmodule OatWeb.ResourceOwner do
   @moduledoc """
   How the authorization endpoint finds out who the resource owner is
-  (RFC 6749 §3.1, §4.1.1 step B).
+  (§3.1, §4.1.1 step B of RFC 6749, https://www.rfc-editor.org/rfc/rfc6749).
 
-  RFC 6749 leaves the way the authorization server authenticates the resource
+  RFC 6749 (https://www.rfc-editor.org/rfc/rfc6749) leaves the way the authorization server authenticates the resource
   owner open, so oat does not ship user accounts. The host application
   implements this behaviour and configures it:
 

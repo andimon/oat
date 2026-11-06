@@ -46,6 +46,29 @@ defmodule Oat.OAuth2.ClientsTest do
       end
     end
 
+    test "redirect URIs must not already carry authorization response parameters" do
+      # Arrange
+      uris =
+        for name <- ~w(code state error error_description error_uri),
+            do: "https://a.example/cb?#{name}=x"
+
+      # Act
+      results = for uri <- uris, do: Clients.register(%{name: "App", redirect_uris: [uri]})
+
+      # Assert
+      for result <- results do
+        assert {:error, %Ecto.Changeset{errors: [redirect_uris: _]}} = result
+      end
+    end
+
+    test "redirect URIs may keep other query parameters" do
+      # Act
+      result = Clients.register(%{name: "App", redirect_uris: ["https://a.example/cb?app=1"]})
+
+      # Assert
+      assert {:ok, _client, _secret} = result
+    end
+
     test "default scopes must be a subset of the client's scopes" do
       # Arrange
       attrs = %{
@@ -100,6 +123,21 @@ defmodule Oat.OAuth2.ClientsTest do
         {nil, %{"client_id" => client.id, "client_secret" => "wrong"}},
         {ClientAuth.encode_basic({"nobody", "secret"}), %{}},
         {nil, %{"client_id" => "nobody"}}
+      ]
+
+      # Act
+      results = for {header, params} <- requests, do: Clients.authenticate(header, params)
+
+      # Assert
+      for result <- results, do: assert({:error, %{error: :invalid_client}} = result)
+    end
+
+    test "credentials outside VSCHAR are rejected", %{client: client, secret: secret} do
+      # Arrange
+      requests = [
+        {nil, %{"client_id" => client.id, "client_secret" => secret <> "\n"}},
+        {nil, %{"client_id" => "é", "client_secret" => secret}},
+        {nil, %{"client_id" => "é"}}
       ]
 
       # Act

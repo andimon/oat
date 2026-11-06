@@ -1,6 +1,7 @@
 defmodule Oat.OAuth2.TokenResponse do
   @moduledoc """
-  Successful token responses (RFC 6749 §5.1).
+  Successful token responses: RFC 6749 §5.1
+  (https://www.rfc-editor.org/rfc/rfc6749#section-5.1).
   """
 
   alias Oat.OAuth2.Scope

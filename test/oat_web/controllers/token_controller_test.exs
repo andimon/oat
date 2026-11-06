@@ -138,4 +138,55 @@ defmodule OatWeb.TokenControllerTest do
     # Assert
     assert %{"error" => "invalid_request"} = json_response(conn, 400)
   end
+
+  test "grant_type must be a name or a URI (A.10)",
+       %{conn: conn, client: client, secret: secret} do
+    # Arrange
+    auth = [{"authorization", ClientAuth.encode_basic({client.id, secret})}]
+
+    cases = [
+      {"a b", "invalid_request"},
+      {"urn:ietf:params:oauth:grant-type:jwt-bearer", "unsupported_grant_type"},
+      {"refresh_token", "unsupported_grant_type"}
+    ]
+
+    # Act
+    results =
+      for {grant_type, expected} <- cases,
+          do: {expected, token_request(conn, form(%{"grant_type" => grant_type}), auth)}
+
+    # Assert
+    for {expected, conn} <- results do
+      assert %{"error" => ^expected} = json_response(conn, 400)
+    end
+  end
+
+  test "the media type is matched case-insensitively",
+       %{conn: conn, client: client, secret: secret, code: code} do
+    # Arrange
+    body = form(%{"grant_type" => "authorization_code", "code" => code})
+
+    # Act
+    conn =
+      conn
+      |> put_req_header("content-type", "Application/X-WWW-Form-Urlencoded; charset=UTF-8")
+      |> put_req_header("authorization", ClientAuth.encode_basic({client.id, secret}))
+      |> post("/oauth/token", body)
+
+    # Assert
+    assert %{"access_token" => _} = json_response(conn, 200)
+  end
+
+  test "a repeated parameter with an odd name is still a clean invalid_request",
+       %{conn: conn, client: client, secret: secret} do
+    # Arrange
+    auth = [{"authorization", ClientAuth.encode_basic({client.id, secret})}]
+
+    # Act
+    conn = token_request(conn, "grant_type=authorization_code&%C3%A9=1&%C3%A9=2", auth)
+
+    # Assert
+    assert %{"error" => "invalid_request", "error_description" => "A parameter is repeated"} =
+             json_response(conn, 400)
+  end
 end

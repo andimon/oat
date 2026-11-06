@@ -3,7 +3,7 @@ defmodule Oat.OAuth2.AuthorizationCodeGrantTest do
 
   import Oat.OAuth2Fixtures
 
-  alias Oat.OAuth2.{AccessToken, AuthorizationCode, AuthorizationCodeGrant, Token}
+  alias Oat.OAuth2.{AccessToken, AuthorizationCode, AuthorizationCodeGrant, Syntax, Token}
 
   setup do
     {client, _secret} = client_fixture()
@@ -314,6 +314,94 @@ defmodule Oat.OAuth2.AuthorizationCodeGrantTest do
       # Assert
       assert {:error, %{error: :invalid_grant}} = unknown
       assert {:error, %{error: :invalid_request}} = missing
+    end
+  end
+
+  describe "syntax of request parameters (Appendix A)" do
+    test "a client_id outside VSCHAR is shown as invalid, not looked up" do
+      # Arrange
+      query = URI.encode_query(%{"response_type" => "code", "client_id" => "a\nb"}, :www_form)
+
+      # Act
+      result = AuthorizationCodeGrant.validate(query)
+
+      # Assert
+      assert {:error, :show, %{description: "The client_id parameter is invalid"}} = result
+    end
+
+    test "a repeated parameter whose name is not a param-name does not leak into the description",
+         %{client: client} do
+      # Arrange
+      query = authorize_query(client) <> "&a%22=1&a%22=2"
+
+      # Act
+      result = AuthorizationCodeGrant.validate(query)
+
+      # Assert
+      assert {:error, :redirect, uri} = result
+
+      assert %{"error" => "invalid_request", "error_description" => "A parameter is repeated"} =
+               redirect_params(uri)
+    end
+
+    test "a code outside VSCHAR is invalid_request", %{client: client} do
+      # Act
+      result = AuthorizationCodeGrant.exchange(client, %{"code" => "a\tb"})
+
+      # Assert
+      assert {:error, %{error: :invalid_request}} = result
+    end
+  end
+
+  describe "syntax of response parameters (Appendix A)" do
+    test "the code and state in the redirect", %{client: client} do
+      # Arrange
+      {:ok, request} = AuthorizationCodeGrant.validate(authorize_query(client))
+
+      # Act
+      {:ok, uri} = AuthorizationCodeGrant.approve(request, "alice")
+
+      # Assert
+      %{"code" => code, "state" => state} = redirect_params(uri)
+      assert Syntax.code?(code)
+      assert Syntax.state?(state)
+    end
+
+    test "every error redirect", %{client: client} do
+      # Arrange
+      {:ok, request} = AuthorizationCodeGrant.validate(authorize_query(client))
+
+      uris = [
+        AuthorizationCodeGrant.deny(request),
+        AuthorizationCodeGrant.error_redirect(request, :server_error, "Something failed"),
+        elem(AuthorizationCodeGrant.validate(authorize_query(client, %{"scope" => "x"})), 2)
+      ]
+
+      # Act
+      params = Enum.map(uris, &redirect_params/1)
+
+      # Assert
+      for p <- params do
+        assert Syntax.error?(p["error"])
+        assert Syntax.error_description?(p["error_description"])
+        assert p["state"] == "xyz"
+      end
+    end
+
+    test "the token response", %{client: client} do
+      # Arrange
+      {:ok, request} = AuthorizationCodeGrant.validate(authorize_query(client))
+      {:ok, uri} = AuthorizationCodeGrant.approve(request, "alice")
+      %{"code" => code} = redirect_params(uri)
+
+      # Act
+      {:ok, response} = AuthorizationCodeGrant.exchange(client, %{"code" => code})
+
+      # Assert
+      assert Syntax.access_token?(response["access_token"])
+      assert Syntax.token_type?(response["token_type"])
+      assert Syntax.expires_in?(Integer.to_string(response["expires_in"]))
+      assert Syntax.scope?(response["scope"])
     end
   end
 end

@@ -28,10 +28,4 @@ defmodule Oat.OAuth2.ErrorTest do
     assert Error.status(Error.new(:invalid_client)) == 400
     assert Error.status(Error.new(:invalid_client), header_auth?: true) == 401
   end
-
-  test "lists the registered error codes per endpoint" do
-    assert :access_denied in Error.authorization_codes()
-    assert :invalid_grant in Error.token_codes()
-    refute :invalid_grant in Error.authorization_codes()
-  end
 end

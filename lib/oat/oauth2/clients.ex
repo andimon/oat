@@ -34,16 +34,16 @@ defmodule Oat.OAuth2.Clients do
       |> Map.put_new_lazy("id", fn -> Token.generate(16) end)
       |> Map.put("secret_hash", secret && Token.hash(secret))
 
-    case %Client{} |> Client.changeset(attrs) |> Repo.insert() do
-      {:ok, client} -> {:ok, client, secret}
-      {:error, changeset} -> {:error, changeset}
-    end
+    with {:ok, client} <- %Client{} |> Client.changeset(attrs) |> Repo.insert(),
+         do: {:ok, client, secret}
   end
 
-  @doc "Fetches a client by its identifier."
+  @doc """
+  Fetches a client by its identifier. An identifier outside the `client_id`
+  syntax (A.1) cannot belong to a client, so it is not looked up.
+  """
   @spec get(String.t() | nil) :: Client.t() | nil
-  def get(id) when is_binary(id), do: Repo.get(Client, id)
-  def get(_), do: nil
+  def get(id), do: if(Syntax.client_id?(id), do: Repo.get(Client, id))
 
   @doc """
   Authenticates the client making a token request (§3.2.1).
@@ -58,27 +58,23 @@ defmodule Oat.OAuth2.Clients do
   def authenticate(authorization, params) do
     case ClientAuth.extract(authorization, params) do
       {:ok, {method, {id, secret}}} when method in [:basic, :body] ->
-        id |> get_valid() |> check_secret(secret)
+        id |> get() |> check_secret(secret)
 
       {:ok, {:public, id}} ->
-        id |> get_valid() |> check_public()
+        id |> get() |> check_public()
 
       {:ok, :none} ->
-        {:error, Error.new(:invalid_client, description: "Client authentication is required")}
+        Error.error(:invalid_client, "Client authentication is required")
 
       {:error, :invalid_request} ->
-        {:error,
-         Error.new(:invalid_request, description: "Use only one client authentication method")}
+        Error.error(:invalid_request, "Use only one client authentication method")
 
       {:error, :invalid_client} ->
         invalid_client()
     end
   end
 
-  # client_id and client_secret are *VSCHAR (A.1, A.2); anything else cannot
-  # belong to a registered client.
-  defp get_valid(id), do: if(Syntax.client_id?(id), do: get(id))
-
+  # client_secret is *VSCHAR (A.2); anything else cannot be a client's secret.
   defp check_secret(%Client{secret_hash: hash} = client, secret) when is_binary(hash) do
     if Syntax.client_secret?(secret) and ClientAuth.secret_matches?(Token.hash(secret), hash),
       do: {:ok, client},
@@ -93,6 +89,5 @@ defmodule Oat.OAuth2.Clients do
 
   defp check_public(nil), do: invalid_client()
 
-  defp invalid_client,
-    do: {:error, Error.new(:invalid_client, description: "Client authentication failed")}
+  defp invalid_client, do: Error.error(:invalid_client, "Client authentication failed")
 end

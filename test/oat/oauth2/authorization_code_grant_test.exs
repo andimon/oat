@@ -134,7 +134,7 @@ defmodule Oat.OAuth2.AuthorizationCodeGrantTest do
       # Assert
       assert request.client.id == client.id
       assert request.redirect_uri == redirect_uri()
-      refute request.redirect_uri_param?
+      assert request.bound_redirect_uri == nil
       assert request.requested_scopes == MapSet.new()
       assert request.scopes == MapSet.new(["read"])
       assert request.state == "xyz"
@@ -149,7 +149,7 @@ defmodule Oat.OAuth2.AuthorizationCodeGrantTest do
       {:ok, request} = AuthorizationCodeGrant.validate(query)
 
       # Assert
-      assert request.redirect_uri_param?
+      assert request.bound_redirect_uri == redirect_uri()
       assert request.scopes == MapSet.new(["read", "write"])
     end
 
@@ -188,14 +188,10 @@ defmodule Oat.OAuth2.AuthorizationCodeGrantTest do
     end
 
     test "the code is not bound to a redirect_uri the request left out", %{client: client} do
-      # Arrange
-      {:ok, request} = AuthorizationCodeGrant.validate(authorize_query(client))
-
       # Act
-      {:ok, uri} = AuthorizationCodeGrant.approve(request, "alice")
+      code = code_fixture(client)
 
       # Assert
-      %{"code" => code} = redirect_params(uri)
       assert Repo.get_by!(AuthorizationCode, code_hash: Token.hash(code)).redirect_uri == nil
     end
 
@@ -213,13 +209,7 @@ defmodule Oat.OAuth2.AuthorizationCodeGrantTest do
 
   describe "exchange/2" do
     setup %{client: client} do
-      {:ok, request} =
-        AuthorizationCodeGrant.validate(
-          authorize_query(client, %{"redirect_uri" => redirect_uri(), "scope" => "read write"})
-        )
-
-      {:ok, uri} = AuthorizationCodeGrant.approve(request, "alice")
-      %{"code" => code} = redirect_params(uri)
+      code = code_fixture(client, %{"redirect_uri" => redirect_uri(), "scope" => "read write"})
       %{code: code, params: %{"code" => code, "redirect_uri" => redirect_uri()}}
     end
 
@@ -241,17 +231,20 @@ defmodule Oat.OAuth2.AuthorizationCodeGrantTest do
       assert Repo.get_by!(AuthorizationCode, code_hash: Token.hash(code)).redeemed_at
     end
 
-    test "returns the scope when it differs from the request", %{client: client} do
+    test "returns the scope when it differs from the request, in valid syntax (A.4, A.12-A.14)",
+         %{client: client} do
       # Arrange
-      {:ok, request} = AuthorizationCodeGrant.validate(authorize_query(client))
-      {:ok, uri} = AuthorizationCodeGrant.approve(request, "alice")
-      %{"code" => code} = redirect_params(uri)
+      code = code_fixture(client)
 
       # Act
       {:ok, response} = AuthorizationCodeGrant.exchange(client, %{"code" => code})
 
       # Assert
       assert response["scope"] == "read"
+      assert Syntax.scope?(response["scope"])
+      assert Syntax.access_token?(response["access_token"])
+      assert Syntax.token_type?(response["token_type"])
+      assert Syntax.expires_in?(Integer.to_string(response["expires_in"]))
     end
 
     test "a code can be used only once; reuse revokes its tokens",
@@ -373,7 +366,6 @@ defmodule Oat.OAuth2.AuthorizationCodeGrantTest do
 
       uris = [
         AuthorizationCodeGrant.deny(request),
-        AuthorizationCodeGrant.error_redirect(request, :server_error, "Something failed"),
         elem(AuthorizationCodeGrant.validate(authorize_query(client, %{"scope" => "x"})), 2)
       ]
 
@@ -386,22 +378,6 @@ defmodule Oat.OAuth2.AuthorizationCodeGrantTest do
         assert Syntax.error_description?(p["error_description"])
         assert p["state"] == "xyz"
       end
-    end
-
-    test "the token response", %{client: client} do
-      # Arrange
-      {:ok, request} = AuthorizationCodeGrant.validate(authorize_query(client))
-      {:ok, uri} = AuthorizationCodeGrant.approve(request, "alice")
-      %{"code" => code} = redirect_params(uri)
-
-      # Act
-      {:ok, response} = AuthorizationCodeGrant.exchange(client, %{"code" => code})
-
-      # Assert
-      assert Syntax.access_token?(response["access_token"])
-      assert Syntax.token_type?(response["token_type"])
-      assert Syntax.expires_in?(Integer.to_string(response["expires_in"]))
-      assert Syntax.scope?(response["scope"])
     end
   end
 end

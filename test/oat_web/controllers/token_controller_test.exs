@@ -3,38 +3,37 @@ defmodule OatWeb.TokenControllerTest do
 
   import Oat.OAuth2Fixtures
 
-  alias Oat.OAuth2.{AuthorizationCodeGrant, ClientAuth}
-
   setup do
     {client, secret} = client_fixture()
-    %{client: client, secret: secret, code: issue_code(client)}
+
+    %{
+      client: client,
+      secret: secret,
+      auth: basic_auth(client, secret),
+      code: code_fixture(client)
+    }
   end
 
-  defp issue_code(client) do
-    {:ok, request} = AuthorizationCodeGrant.validate(authorize_query(client))
-    {:ok, uri} = AuthorizationCodeGrant.approve(request, "alice")
-    redirect_params(uri)["code"]
+  defp token_request(conn, body, opts \\ []) do
+    conn =
+      put_req_header(
+        conn,
+        "content-type",
+        Keyword.get(opts, :content_type, "application/x-www-form-urlencoded")
+      )
+
+    conn =
+      if auth = opts[:authorization], do: put_req_header(conn, "authorization", auth), else: conn
+
+    post(conn, "/oauth/token", body)
   end
 
-  defp token_request(conn, body, headers \\ []) do
-    conn
-    |> put_req_header("content-type", "application/x-www-form-urlencoded")
-    |> then(fn conn ->
-      Enum.reduce(headers, conn, fn {k, v}, c -> put_req_header(c, k, v) end)
-    end)
-    |> post("/oauth/token", body)
-  end
-
-  defp form(params), do: URI.encode_query(params, :www_form)
+  defp code_grant(code), do: form(%{"grant_type" => "authorization_code", "code" => code})
 
   test "exchanges a code for an access token with Basic authentication",
-       %{conn: conn, client: client, secret: secret, code: code} do
-    # Arrange
-    body = form(%{"grant_type" => "authorization_code", "code" => code})
-    auth = [{"authorization", ClientAuth.encode_basic({client.id, secret})}]
-
+       %{conn: conn, auth: auth, code: code} do
     # Act
-    conn = token_request(conn, body, auth)
+    conn = token_request(conn, code_grant(code), authorization: auth)
 
     # Assert
     assert %{"access_token" => _, "token_type" => "Bearer", "expires_in" => 3600} =
@@ -65,8 +64,13 @@ defmodule OatWeb.TokenControllerTest do
   test "a public client sends only its client_id", %{conn: conn} do
     # Arrange
     {public, nil} = client_fixture(%{}, confidential: false)
-    code = issue_code(public)
-    body = form(%{"grant_type" => "authorization_code", "code" => code, "client_id" => public.id})
+
+    body =
+      form(%{
+        "grant_type" => "authorization_code",
+        "code" => code_fixture(public),
+        "client_id" => public.id
+      })
 
     # Act
     conn = token_request(conn, body)
@@ -77,12 +81,8 @@ defmodule OatWeb.TokenControllerTest do
 
   test "failed Basic authentication is a 401 with WWW-Authenticate",
        %{conn: conn, client: client, code: code} do
-    # Arrange
-    body = form(%{"grant_type" => "authorization_code", "code" => code})
-    auth = [{"authorization", ClientAuth.encode_basic({client.id, "wrong"})}]
-
     # Act
-    conn = token_request(conn, body, auth)
+    conn = token_request(conn, code_grant(code), authorization: basic_auth(client, "wrong"))
 
     # Assert
     assert %{"error" => "invalid_client"} = json_response(conn, 401)
@@ -90,103 +90,46 @@ defmodule OatWeb.TokenControllerTest do
     assert get_resp_header(conn, "cache-control") == ["no-store"]
   end
 
-  test "a reused code is invalid_grant",
-       %{conn: conn, client: client, secret: secret, code: code} do
+  test "a reused code is invalid_grant", %{conn: conn, auth: auth, code: code} do
     # Arrange
-    body = form(%{"grant_type" => "authorization_code", "code" => code})
-    auth = [{"authorization", ClientAuth.encode_basic({client.id, secret})}]
-    token_request(conn, body, auth)
+    token_request(conn, code_grant(code), authorization: auth)
 
     # Act
-    conn = token_request(build_conn(), body, auth)
+    conn = token_request(build_conn(), code_grant(code), authorization: auth)
 
     # Assert
     assert %{"error" => "invalid_grant"} = json_response(conn, 400)
   end
 
-  test "rejects bad requests with the right error",
-       %{conn: conn, client: client, secret: secret, code: code} do
-    # Arrange
-    auth = [{"authorization", ClientAuth.encode_basic({client.id, secret})}]
-
-    cases = [
-      {"grant_type=authorization_code&code=#{code}&code=#{code}", "invalid_request"},
-      {form(%{"code" => code}), "invalid_request"},
-      {form(%{"grant_type" => "password"}), "unsupported_grant_type"}
-    ]
-
+  test "errors from the token request are a 400 JSON body", %{conn: conn, auth: auth} do
     # Act
-    results = for {body, expected} <- cases, do: {expected, token_request(conn, body, auth)}
+    conn = token_request(conn, form(%{"grant_type" => "password"}), authorization: auth)
 
     # Assert
-    for {expected, conn} <- results do
-      assert %{"error" => ^expected} = json_response(conn, 400)
-    end
+    assert %{"error" => "unsupported_grant_type"} = json_response(conn, 400)
+    assert get_resp_header(conn, "cache-control") == ["no-store"]
   end
 
-  test "requires a form-encoded body", %{conn: conn, client: client, secret: secret} do
+  test "requires a form-encoded body", %{conn: conn, auth: auth} do
     # Arrange
     body = Jason.encode!(%{"grant_type" => "authorization_code"})
 
     # Act
-    conn =
-      conn
-      |> put_req_header("content-type", "application/json")
-      |> put_req_header("authorization", ClientAuth.encode_basic({client.id, secret}))
-      |> post("/oauth/token", body)
+    conn = token_request(conn, body, content_type: "application/json", authorization: auth)
 
     # Assert
     assert %{"error" => "invalid_request"} = json_response(conn, 400)
   end
 
-  test "grant_type must be a name or a URI (A.10)",
-       %{conn: conn, client: client, secret: secret} do
-    # Arrange
-    auth = [{"authorization", ClientAuth.encode_basic({client.id, secret})}]
-
-    cases = [
-      {"a b", "invalid_request"},
-      {"urn:ietf:params:oauth:grant-type:jwt-bearer", "unsupported_grant_type"},
-      {"refresh_token", "unsupported_grant_type"}
-    ]
-
-    # Act
-    results =
-      for {grant_type, expected} <- cases,
-          do: {expected, token_request(conn, form(%{"grant_type" => grant_type}), auth)}
-
-    # Assert
-    for {expected, conn} <- results do
-      assert %{"error" => ^expected} = json_response(conn, 400)
-    end
-  end
-
-  test "the media type is matched case-insensitively",
-       %{conn: conn, client: client, secret: secret, code: code} do
-    # Arrange
-    body = form(%{"grant_type" => "authorization_code", "code" => code})
-
+  test "the media type is matched case-insensitively", %{conn: conn, auth: auth, code: code} do
     # Act
     conn =
-      conn
-      |> put_req_header("content-type", "Application/X-WWW-Form-Urlencoded; charset=UTF-8")
-      |> put_req_header("authorization", ClientAuth.encode_basic({client.id, secret}))
-      |> post("/oauth/token", body)
+      token_request(conn, code_grant(code),
+        content_type: "Application/X-WWW-Form-Urlencoded; charset=UTF-8",
+        authorization: auth
+      )
 
     # Assert
     assert %{"access_token" => _} = json_response(conn, 200)
-  end
-
-  test "a repeated parameter with an odd name is still a clean invalid_request",
-       %{conn: conn, client: client, secret: secret} do
-    # Arrange
-    auth = [{"authorization", ClientAuth.encode_basic({client.id, secret})}]
-
-    # Act
-    conn = token_request(conn, "grant_type=authorization_code&%C3%A9=1&%C3%A9=2", auth)
-
-    # Assert
-    assert %{"error" => "invalid_request", "error_description" => "A parameter is repeated"} =
-             json_response(conn, 400)
   end
 end

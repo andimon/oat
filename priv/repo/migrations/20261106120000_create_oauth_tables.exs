@@ -33,6 +33,8 @@ defmodule Oat.Repo.Migrations.CreateOauthTables do
     end
 
     create unique_index(:oauth_authorization_codes, [:code_hash])
+    # Deleting a client cascades to its codes and tokens.
+    create index(:oauth_authorization_codes, [:client_id])
 
     create table(:oauth_access_tokens) do
       add :token_hash, :string, null: false
@@ -52,5 +54,6 @@ defmodule Oat.Repo.Migrations.CreateOauthTables do
 
     create unique_index(:oauth_access_tokens, [:token_hash])
     create index(:oauth_access_tokens, [:authorization_code_id])
+    create index(:oauth_access_tokens, [:client_id])
   end
 end

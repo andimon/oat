@@ -3,6 +3,8 @@ defmodule Oat.OAuth2.RedirectURI do
   Redirection endpoint handling: RFC 6749 (https://www.rfc-editor.org/rfc/rfc6749) §3.1.2, §4.1.2.
   """
 
+  alias Oat.OAuth2.Params
+
   @doc """
   Checks that a redirection URI is an absolute URI without a fragment (§3.1.2).
   """
@@ -55,7 +57,7 @@ defmodule Oat.OAuth2.RedirectURI do
   """
   @spec append(String.t(), Enumerable.t()) :: String.t()
   def append(uri, params) do
-    encoded = params |> Enum.reject(fn {_, v} -> is_nil(v) end) |> URI.encode_query(:www_form)
+    encoded = params |> Params.compact() |> URI.encode_query(:www_form)
     uri = URI.parse(uri)
 
     URI.to_string(%{uri | query: join_query(uri.query, encoded)})

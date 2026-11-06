@@ -6,26 +6,16 @@ defmodule Oat.OAuth2.ParamsTest do
   doctest Params
 
   test "decode/1 drops empty values before checking for repeats" do
-    assert Params.decode("scope=&scope=read") == {:ok, %{"scope" => "read"}}
-    assert Params.decode(nil) == {:ok, %{}}
+    assert Params.decode("scope=&scope=read") == {%{"scope" => "read"}, []}
+    assert Params.decode(nil) == {%{}, []}
 
     assert Params.decode("redirect_uri=https%3A%2F%2Fc.example%2Fcb") ==
-             {:ok, %{"redirect_uri" => "https://c.example/cb"}}
+             {%{"redirect_uri" => "https://c.example/cb"}, []}
   end
 
-  test "decode/1 keeps the first value of each parameter when one is repeated" do
-    assert Params.decode("client_id=s6&scope=a&state=x&scope=b&state=y") ==
-             {:error, {:repeated, "scope"},
-              %{"client_id" => "s6", "scope" => "a", "state" => "x"}}
-  end
-
-  test "require/2 returns values in order or the first missing name" do
-    params = %{"grant_type" => "authorization_code", "code" => "abc"}
-
-    assert Params.require(params, ["grant_type", "code"]) == {:ok, ["authorization_code", "abc"]}
-
-    assert Params.require(params, ["code", "redirect_uri"]) ==
-             {:error, {:missing, "redirect_uri"}}
+  test "decode/1 keeps the first value and lists each repeated name once, in order" do
+    assert Params.decode("client_id=s6&state=x&scope=a&state=y&scope=b&state=z") ==
+             {%{"client_id" => "s6", "scope" => "a", "state" => "x"}, ["state", "scope"]}
   end
 
   test "response_type/1 rejects bad syntax" do

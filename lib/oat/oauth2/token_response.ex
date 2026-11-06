@@ -4,7 +4,7 @@ defmodule Oat.OAuth2.TokenResponse do
   (https://www.rfc-editor.org/rfc/rfc6749#section-5.1).
   """
 
-  alias Oat.OAuth2.Scope
+  alias Oat.OAuth2.{Params, Scope}
 
   @doc """
   Headers every token endpoint response must carry, success or error (§5.1, §5.2).
@@ -39,14 +39,12 @@ defmodule Oat.OAuth2.TokenResponse do
         true -> nil
       end
 
-    [
+    Params.compact([
       {"access_token", Keyword.fetch!(opts, :access_token)},
       {"token_type", Keyword.get(opts, :token_type, "Bearer")},
       {"expires_in", Keyword.get(opts, :expires_in)},
       {"refresh_token", Keyword.get(opts, :refresh_token)},
       {"scope", scope}
-    ]
-    |> Enum.reject(fn {_, v} -> is_nil(v) end)
-    |> Map.new()
+    ])
   end
 end

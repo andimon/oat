@@ -11,12 +11,7 @@ defmodule Oat.OAuth2.Error do
     `status/1`.
   """
 
-  alias Oat.OAuth2.Syntax
-
-  @authorization_codes ~w(invalid_request unauthorized_client access_denied unsupported_response_type
-                          invalid_scope server_error temporarily_unavailable)a
-  @token_codes ~w(invalid_request invalid_client invalid_grant unauthorized_client
-                  unsupported_grant_type invalid_scope)a
+  alias Oat.OAuth2.{Params, Syntax}
 
   @enforce_keys [:error]
   defstruct [:error, :description, :uri, :state]
@@ -28,12 +23,6 @@ defmodule Oat.OAuth2.Error do
           uri: String.t() | nil,
           state: String.t() | nil
         }
-
-  @doc "Error codes defined for the authorization endpoint (§4.1.2.1)."
-  def authorization_codes, do: @authorization_codes
-
-  @doc "Error codes defined for the token endpoint (§5.2)."
-  def token_codes, do: @token_codes
 
   @doc """
   Builds an error. Raises `ArgumentError` if the description or URI would break
@@ -58,24 +47,31 @@ defmodule Oat.OAuth2.Error do
     error
   end
 
+  @doc "`{:error, error}` for an error with a description, the usual failure result."
+  @spec error(code(), String.t()) :: {:error, t()}
+  def error(code, description), do: {:error, new(code, description: description)}
+
   @doc """
-  The `error_description` for a repeated parameter (§3.1, §3.2).
+  The `invalid_request` error for a repeated parameter (§3.1, §3.2).
 
   The name comes from the request, so it is named only when it is a valid
   `param-name` (A.18). Anything else could break the description's character
   set (A.8).
 
-      iex> Oat.OAuth2.Error.repeated_description("scope")
+      iex> Oat.OAuth2.Error.repeated("scope").description
       "The scope parameter is repeated"
 
-      iex> Oat.OAuth2.Error.repeated_description(~s(a"b))
+      iex> Oat.OAuth2.Error.repeated(~s(a"b)).description
       "A parameter is repeated"
   """
-  @spec repeated_description(String.t()) :: String.t()
-  def repeated_description(name) do
-    if Syntax.name?(name),
-      do: "The #{name} parameter is repeated",
-      else: "A parameter is repeated"
+  @spec repeated(String.t()) :: t()
+  def repeated(name) do
+    description =
+      if Syntax.name?(name),
+        do: "The #{name} parameter is repeated",
+        else: "A parameter is repeated"
+
+    new(:invalid_request, description: description)
   end
 
   @doc """
@@ -84,14 +80,12 @@ defmodule Oat.OAuth2.Error do
   """
   @spec to_params(t()) :: %{String.t() => String.t()}
   def to_params(%__MODULE__{} = error) do
-    [
+    Params.compact([
       {"error", Atom.to_string(error.error)},
       {"error_description", error.description},
       {"error_uri", error.uri},
       {"state", error.state}
-    ]
-    |> Enum.reject(fn {_, v} -> is_nil(v) end)
-    |> Map.new()
+    ])
   end
 
   @doc """

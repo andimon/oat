@@ -37,9 +37,9 @@ defmodule Oat.OAuth2.Scope do
   Formats a scope as a `scope` parameter value. Tokens are sorted so the output
   is stable. Returns `nil` for an empty scope so the parameter can be left out.
   """
-  @spec format(t() | [String.t()]) :: String.t() | nil
+  @spec format(t()) :: String.t() | nil
   def format(scope) do
-    case scope |> Enum.uniq() |> Enum.sort() do
+    case Enum.sort(scope) do
       [] -> nil
       tokens -> Enum.join(tokens, " ")
     end
@@ -59,11 +59,9 @@ defmodule Oat.OAuth2.Scope do
   def resolve(requested, allowed, default \\ MapSet.new()) do
     requested = if Enum.empty?(requested), do: default, else: requested
 
-    cond do
-      Enum.empty?(requested) -> {:error, :invalid_scope}
-      MapSet.subset?(requested, allowed) -> {:ok, requested}
-      true -> {:error, :invalid_scope}
-    end
+    if not Enum.empty?(requested) and MapSet.subset?(requested, allowed),
+      do: {:ok, requested},
+      else: {:error, :invalid_scope}
   end
 
   @doc """

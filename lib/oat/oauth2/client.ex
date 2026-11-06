@@ -82,12 +82,8 @@ defmodule Oat.OAuth2.Client do
   end
 
   defp validate_default_scopes(changeset) do
-    scopes = get_field(changeset, :scopes)
-
-    validate_change(changeset, :default_scopes, fn :default_scopes, defaults ->
-      if Enum.all?(defaults, &(&1 in scopes)),
-        do: [],
-        else: [default_scopes: "must be a subset of scopes"]
-    end)
+    validate_subset(changeset, :default_scopes, get_field(changeset, :scopes),
+      message: "must be a subset of scopes"
+    )
   end
 end

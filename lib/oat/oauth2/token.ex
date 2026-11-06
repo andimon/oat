@@ -43,13 +43,4 @@ defmodule Oat.OAuth2.Token do
   def expired?(%DateTime{} = expires_at, %DateTime{} = now \\ DateTime.utc_now()) do
     DateTime.compare(now, expires_at) != :lt
   end
-
-  @doc """
-  Seconds left until `expires_at`, for the `expires_in` response parameter (§5.1).
-  Never negative.
-  """
-  @spec expires_in(DateTime.t(), DateTime.t()) :: non_neg_integer()
-  def expires_in(%DateTime{} = expires_at, %DateTime{} = now \\ DateTime.utc_now()) do
-    max(DateTime.diff(expires_at, now, :second), 0)
-  end
 end

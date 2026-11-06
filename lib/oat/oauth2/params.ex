@@ -12,57 +12,46 @@ defmodule Oat.OAuth2.Params do
   """
 
   @doc """
-  Decodes an `application/x-www-form-urlencoded` string, drops empty values and
-  rejects repeated parameter names.
+  Decodes an `application/x-www-form-urlencoded` string and drops empty values.
 
-  On a repeat the error also carries the parameters decoded so far, keeping the
-  first value of each name. The authorization endpoint needs them to decide
-  whether it may redirect the error back to the client (§4.1.2.1).
+  Returns `{params, repeated}`: `params` keeps the first value of each name and
+  `repeated` lists the names that appear more than once, in order. Each endpoint
+  decides what a repeat means; the authorization endpoint, for example, may
+  only redirect the error when `client_id` and `redirect_uri` are not repeated
+  (§4.1.2.1).
 
       iex> Oat.OAuth2.Params.decode("response_type=code&client_id=s6&state=")
-      {:ok, %{"response_type" => "code", "client_id" => "s6"}}
+      {%{"response_type" => "code", "client_id" => "s6"}, []}
 
       iex> Oat.OAuth2.Params.decode("client_id=s6&scope=a&scope=b")
-      {:error, {:repeated, "scope"}, %{"client_id" => "s6", "scope" => "a"}}
+      {%{"client_id" => "s6", "scope" => "a"}, ["scope"]}
   """
-  @spec decode(String.t() | nil) ::
-          {:ok, %{String.t() => String.t()}}
-          | {:error, {:repeated, String.t()}, %{String.t() => String.t()}}
-  def decode(nil), do: {:ok, %{}}
+  @spec decode(String.t() | nil) :: {%{String.t() => String.t()}, [String.t()]}
+  def decode(nil), do: {%{}, []}
 
   def decode(raw) when is_binary(raw) do
-    raw
-    |> URI.query_decoder(:www_form)
-    |> Enum.reject(fn {_, value} -> value == "" end)
-    |> Enum.reduce({%{}, nil}, fn {name, value}, {params, repeated} ->
-      if Map.has_key?(params, name) do
-        {params, repeated || name}
-      else
-        {Map.put(params, name, value), repeated}
-      end
-    end)
-    |> case do
-      {params, nil} -> {:ok, params}
-      {params, name} -> {:error, {:repeated, name}, params}
-    end
+    {params, repeated} =
+      raw
+      |> URI.query_decoder(:www_form)
+      |> Enum.reject(fn {_, value} -> value == "" end)
+      |> Enum.reduce({%{}, []}, fn {name, value}, {params, repeated} ->
+        if Map.has_key?(params, name),
+          do: {params, [name | repeated]},
+          else: {Map.put(params, name, value), repeated}
+      end)
+
+    {params, repeated |> Enum.reverse() |> Enum.uniq()}
   end
 
   @doc """
-  Fetches the required parameters, in order. Returns the first missing name on failure.
+  Builds a parameter map from name/value pairs, leaving out `nil` values, i.e.
+  optional parameters that are not set.
+
+      iex> Oat.OAuth2.Params.compact(error: "access_denied", state: nil)
+      %{error: "access_denied"}
   """
-  @spec require(map(), [String.t()]) :: {:ok, [String.t()]} | {:error, {:missing, String.t()}}
-  def require(params, names) do
-    Enum.reduce_while(names, {:ok, []}, fn name, {:ok, acc} ->
-      case params do
-        %{^name => value} -> {:cont, {:ok, [value | acc]}}
-        _ -> {:halt, {:error, {:missing, name}}}
-      end
-    end)
-    |> case do
-      {:ok, values} -> {:ok, Enum.reverse(values)}
-      error -> error
-    end
-  end
+  @spec compact(Enumerable.t()) :: map()
+  def compact(pairs), do: for({k, v} <- pairs, not is_nil(v), into: %{}, do: {k, v})
 
   @doc """
   Parses `response_type` (§3.1.1). Extension response types may hold several

@@ -26,17 +26,15 @@ defmodule OatWeb.ResourceOwner.Session do
 
   @impl true
   def authenticate(conn, return_to) do
-    if Application.get_env(:oat, :dev_routes) do
-      conn
-      |> Phoenix.Controller.redirect(
-        to: "/dev/sign_in?" <> URI.encode_query(return_to: return_to)
-      )
-      |> halt()
-    else
-      conn
-      |> put_resp_content_type("text/plain")
-      |> send_resp(401, "Sign in required")
-      |> halt()
-    end
+    conn =
+      if Application.get_env(:oat, :dev_routes) do
+        Phoenix.Controller.redirect(conn,
+          to: "/dev/sign_in?" <> URI.encode_query(return_to: return_to)
+        )
+      else
+        conn |> put_resp_content_type("text/plain") |> send_resp(401, "Sign in required")
+      end
+
+    halt(conn)
   end
 end

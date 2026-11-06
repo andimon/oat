@@ -27,7 +27,5 @@ defmodule Oat.OAuth2.TokenTest do
     assert expires == ~U[2026-01-01 00:10:00Z]
     refute Token.expired?(expires, ~U[2026-01-01 00:09:59Z])
     assert Token.expired?(expires, expires)
-    assert Token.expires_in(expires, issued) == 600
-    assert Token.expires_in(expires, ~U[2026-01-02 00:00:00Z]) == 0
   end
 end

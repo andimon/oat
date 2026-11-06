@@ -1,0 +1,26 @@
+<Layouts.app flash={@flash}>
+  <%!-- A plain path, not ~p: the /dev routes exist only when :dev_routes is enabled. --%>
+  <div class="mx-auto max-w-sm rounded-2xl border border-base-300 bg-base-100 p-8 shadow-sm">
+    <p class="text-sm text-base-content/60">Development only</p>
+    <h1 class="mt-1 text-2xl font-semibold tracking-tight">Sign in as a resource owner</h1>
+
+    <form id="dev-sign-in" method="post" action="/dev/sign_in" class="mt-6 space-y-4">
+      <input type="hidden" name="_csrf_token" value={get_csrf_token()} />
+      <input type="hidden" name="return_to" value={@return_to} />
+      <input
+        type="text"
+        name="name"
+        placeholder="alice"
+        required
+        autofocus
+        class="w-full rounded-lg border border-base-300 bg-base-100 px-3 py-2"
+      />
+      <button
+        type="submit"
+        class="w-full rounded-lg bg-primary px-4 py-2 font-medium text-primary-content transition hover:opacity-90"
+      >
+        Sign in
+      </button>
+    </form>
+  </div>
+</Layouts.app>

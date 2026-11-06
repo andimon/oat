@@ -1,0 +1,10 @@
+<Layouts.app flash={@flash}>
+  <div class="mx-auto max-w-md rounded-2xl border border-error/40 bg-base-100 p-8 shadow-sm">
+    <p class="text-sm text-error">Authorization error</p>
+    <h1 id="error-code" class="mt-1 font-mono text-xl font-semibold">{@error}</h1>
+    <p id="error-description" class="mt-4 text-base-content/80">{@description}</p>
+    <p class="mt-6 text-sm text-base-content/60">
+      The request cannot be sent back to the application, so nothing was shared with it.
+    </p>
+  </div>
+</Layouts.app>

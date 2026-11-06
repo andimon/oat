@@ -14,6 +14,19 @@ defmodule OatWeb.Router do
     plug :accepts, ["json"]
   end
 
+  scope "/oauth", OatWeb do
+    pipe_through :browser
+
+    get "/authorize", AuthorizeController, :new
+    post "/authorize", AuthorizeController, :create
+  end
+
+  # No pipeline: token requests need not send an Accept header (RFC 6749 §4.1.3),
+  # and use client authentication instead of a session or CSRF token.
+  scope "/oauth", OatWeb do
+    post "/token", TokenController, :create
+  end
+
   # Enable LiveDashboard and Swoosh mailbox preview in development
   if Application.compile_env(:oat, :dev_routes) do
     # If you want to use the LiveDashboard in production, you should put
@@ -28,6 +41,13 @@ defmodule OatWeb.Router do
 
       live_dashboard "/dashboard", metrics: OatWeb.Telemetry
       forward "/mailbox", Plug.Swoosh.MailboxPreview
+    end
+
+    scope "/dev", OatWeb do
+      pipe_through :browser
+
+      get "/sign_in", DevSessionController, :new
+      post "/sign_in", DevSessionController, :create
     end
   end
 end
